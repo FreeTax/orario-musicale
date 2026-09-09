@@ -18,9 +18,14 @@ WARN_FILL = PatternFill("solid", fgColor="FFF2CC")
 BOLD = Font(bold=True)
 ESEMPIO = "ESEMPIO – cancellare"
 
-COLONNE_STUDENTI = ["Classe", "Cognome", "Nome", "Comune", "Indirizzo", "Civico", "KM",
+COLONNE_STUDENTI = ["Classe", "Cognome", "Nome",
                     "Strumento 1", "Docente 1", "Strumento 2", "Docente 2",
-                    "Ore consecutive (SI/NO)", "Giorno unico (SI/NO)", "Giorni NON disponibili", "Note"]
+                    "Ore consecutive (SI/NO)", "Giorno unico (SI/NO)", "Giorni NON disponibili",
+                    "Comune", "Indirizzo", "Civico", "KM", "Note"]
+LARGHEZZE_STUDENTI = {"Classe": 7, "Cognome": 22, "Nome": 22, "Strumento 1": 15, "Docente 1": 16,
+                      "Strumento 2": 15, "Docente 2": 16, "Ore consecutive (SI/NO)": 13,
+                      "Giorno unico (SI/NO)": 13, "Giorni NON disponibili": 17, "Comune": 20,
+                      "Indirizzo": 26, "Civico": 8, "KM": 7, "Note": 30}
 COLONNE_DOCENTI = ["Docente", "Strumento/i", "Aula", "Ore accompagnamento"] + FASCE + ["Note"]
 COLONNE_GRUPPI = ["Gruppo", "Docente", "Studente 1", "Studente 2", "Studente 3", "Studente 4", "Studente 5", "Note"]
 COLONNE_LMI = ["Laboratorio", "Classi", "Docente", "Aula", "Giorno e ora (mattino)",
@@ -42,14 +47,13 @@ ISTRUZIONI = [
     "Le righe grigie con 'ESEMPIO' servono solo a far vedere come si compila: vanno cancellate.",
     "",
     "FOGLIO 'Studenti' – un rigo per ragazzo.",
-    "  Classe: 1–5.  Comune, Indirizzo, Civico: servono per calcolare i tempi di ritorno a casa con i mezzi pubblici",
-    "  (menu Orario → Aggiorna trasporti, serve internet). KM: distanza casa-scuola, usata quando mancano i dati dei mezzi.",
-    "  I ragazzi senza KM né trasporti vengono trattati come se abitassero vicino.",
-    "  Docente 1 / Docente 2: devono coincidere con un nome del foglio 'Docenti' (menu a tendina).",
+    "  Classe: 1–5.  Docente 1 / Docente 2: devono coincidere con un nome del foglio 'Docenti' (menu a tendina).",
     "  Per la classe 5 il 2° strumento resta vuoto.",
     "  Ore consecutive = SI se le 2 ore di 1° strumento devono essere una di seguito all'altra (solo classi 1, 2, 5).",
     "  Giorno unico = SI se il ragazzo deve rientrare un solo giorno a settimana.",
     "  Giorni NON disponibili: es. 'Mar, Gio' se il ragazzo non può venire quei pomeriggi. Vuoto = tutti i giorni possibili.",
+    "  Comune, Indirizzo, Civico: per calcolare i tempi di ritorno a casa con i mezzi (menu Orario → Aggiorna trasporti).",
+    "  KM: distanza casa-scuola, usata quando mancano i dati dei mezzi. Senza né KM né mezzi si è trattati come vicini.",
     "",
     "FOGLIO 'Docenti' – un rigo per docente, con la disponibilità oraria.",
     "  Aula: aula fissa del docente, scritta in testa alla sua colonna nell'orario.",
@@ -115,37 +119,59 @@ def costruisci_workbook(studenti: Iterable[dict] = (), docenti: Iterable[dict] =
 
     # Studenti
     ws = wb.create_sheet(FOGLIO_STUDENTI)
-    _intesta(ws, COLONNE_STUDENTI, {2: 22, 3: 22, 4: 20, 5: 26, 6: 8, 7: 7, 8: 16, 9: 16, 10: 16, 11: 16,
-                                    12: 14, 13: 14, 14: 18, 15: 30})
+    col = {nome: i for i, nome in enumerate(COLONNE_STUDENTI, start=1)}
+    _intesta(ws, COLONNE_STUDENTI, {col[k]: v for k, v in LARGHEZZE_STUDENTI.items()})
+
+    def riga_studente(s: dict) -> list:
+        valori = {
+            "Classe": s["classe"], "Cognome": s["cognome"], "Nome": s["nome"],
+            "Strumento 1": s.get("strum1", ""), "Docente 1": s.get("doc1", ""),
+            "Strumento 2": s.get("strum2", ""), "Docente 2": s.get("doc2", ""),
+            "Ore consecutive (SI/NO)": s.get("ore_consecutive", "NO"),
+            "Giorno unico (SI/NO)": s.get("giorno_unico", "NO"),
+            "Giorni NON disponibili": s.get("giorni_non_disp", ""),
+            "Comune": s.get("comune", ""), "Indirizzo": s.get("indirizzo", ""),
+            "Civico": s.get("civico", ""), "KM": s.get("km"), "Note": s.get("note", ""),
+        }
+        return [valori[c] for c in COLONNE_STUDENTI]
+
     for s in sorted(studenti, key=lambda x: (x["classe"], x["cognome"], x["nome"])):
-        ws.append([s["classe"], s["cognome"], s["nome"], s.get("comune", ""), s.get("indirizzo", ""), s.get("civico", ""),
-                   s.get("km"), s.get("strum1", ""), s.get("doc1", ""), s.get("strum2", ""), s.get("doc2", ""),
-                   "NO", "NO", "", s.get("note", "")])
+        ws.append(riga_studente(s))
         r = ws.max_row
         if s.get("km") is None and not s.get("indirizzo"):
-            ws.cell(row=r, column=7).fill = WARN_FILL
+            ws.cell(row=r, column=col["KM"]).fill = WARN_FILL
         if not s.get("doc1"):
-            ws.cell(row=r, column=9).fill = WARN_FILL
+            ws.cell(row=r, column=col["Docente 1"]).fill = WARN_FILL
         if s["classe"] != 5 and not s.get("doc2"):
-            ws.cell(row=r, column=11).fill = WARN_FILL
+            ws.cell(row=r, column=col["Docente 2"]).fill = WARN_FILL
     if not studenti and esempi:
-        ws.append([1, "ROSSI", "MARIO", "Sambuca Pistoiese", "Località Bellavalle", "68", 27.5, "PIANOFORTE", "Bianchi",
-                   "VIOLINO", "Verdi", "NO", "NO", "", ESEMPIO])
-        ws.append([4, "NERI", "ANNA", "Pistoia", "Via Nazario Sauro", "283", 0.5, "CANTO", "Verdi", "PIANOFORTE",
-                   "Bianchi", "NO", "SI", "Mar", ESEMPIO])
+        ws.append(riga_studente({
+            "classe": 1, "cognome": "ROSSI", "nome": "MARIO", "strum1": "PIANOFORTE", "doc1": "Bianchi",
+            "strum2": "VIOLINO", "doc2": "Verdi", "comune": "Sambuca Pistoiese",
+            "indirizzo": "Località Bellavalle", "civico": "68", "km": 27.5, "note": ESEMPIO}))
+        ws.append(riga_studente({
+            "classe": 4, "cognome": "NERI", "nome": "ANNA", "strum1": "CANTO", "doc1": "Verdi",
+            "strum2": "PIANOFORTE", "doc2": "Bianchi", "giorno_unico": "SI", "giorni_non_disp": "Mar",
+            "comune": "Pistoia", "indirizzo": "Via Nazario Sauro", "civico": "283", "km": 0.5,
+            "note": ESEMPIO}))
         _grigia(ws, 2, len(COLONNE_STUDENTI))
         _grigia(ws, 3, len(COLONNE_STUDENTI))
     n_stud = max(ws.max_row, 2)
+    fondo = n_stud + 200
+
+    def lettera(nome: str) -> str:
+        return get_column_letter(col[nome])
+
     dv = DataValidation(type="list", formula1='"SI,NO"', allow_blank=True)
     ws.add_data_validation(dv)
-    dv.add(f"L2:M{n_stud + 200}")
+    dv.add(f"{lettera('Ore consecutive (SI/NO)')}2:{lettera('Giorno unico (SI/NO)')}{fondo}")
     dv = DataValidation(type="list", formula1="=Docenti!$A$2:$A$80", allow_blank=True)
     ws.add_data_validation(dv)
-    dv.add(f"I2:I{n_stud + 200}")
-    dv.add(f"K2:K{n_stud + 200}")
+    dv.add(f"{lettera('Docente 1')}2:{lettera('Docente 1')}{fondo}")
+    dv.add(f"{lettera('Docente 2')}2:{lettera('Docente 2')}{fondo}")
     dv = DataValidation(type="whole", operator="between", formula1="1", formula2="5")
     ws.add_data_validation(dv)
-    dv.add(f"A2:A{n_stud + 200}")
+    dv.add(f"{lettera('Classe')}2:{lettera('Classe')}{fondo}")
 
     # Docenti
     ws = wb.create_sheet(FOGLIO_DOCENTI)
@@ -183,7 +209,9 @@ def costruisci_workbook(studenti: Iterable[dict] = (), docenti: Iterable[dict] =
     dv = DataValidation(type="list", formula1="=Docenti!$A$2:$A$80", allow_blank=True)
     ws.add_data_validation(dv)
     dv.add("B2:B120")
-    dv = DataValidation(type="list", formula1=f"=Studenti!$B$2:$B${n_stud + 200}", allow_blank=True)
+    col_cognome = get_column_letter(COLONNE_STUDENTI.index("Cognome") + 1)
+    dv = DataValidation(type="list", formula1=f"=Studenti!${col_cognome}$2:${col_cognome}${n_stud + 200}",
+                        allow_blank=True)
     ws.add_data_validation(dv)
     dv.add("C2:G120")
 

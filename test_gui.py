@@ -405,9 +405,14 @@ class TestGriglie(BaseGui):
             self.assertEqual(sorted(app.fogli), sorted(FOGLI_DATI))
             for nome, sheet in app.fogli.items():
                 righe = sheet.get_sheet_data()
-                self.assertEqual(len(righe), atteso[nome][0], f"righe del foglio {nome}")
+                # una riga vuota in fondo è sempre pronta per scrivere: non fa parte dei dati
+                self.assertEqual(len(righe), atteso[nome][0] + 1, f"righe del foglio {nome}")
+                self.assertTrue(all(not str(v).strip() for v in righe[-1] if v is not None),
+                                f"l'ultima riga del foglio {nome} deve essere vuota")
                 self.assertEqual(len(sheet.headers()), atteso[nome][1], f"colonne del foglio {nome}")
-            self.assertEqual(len(app.fogli["Studenti"].get_sheet_data()), 30, "30 studenti nel file di esempio")
+                self.assertEqual(len(app.tabelle_correnti()[nome].righe), atteso[nome][0],
+                                 f"dati del foglio {nome} senza la riga vuota")
+            self.assertEqual(len(app.tabelle_correnti()["Studenti"].righe), 30, "30 studenti nel file di esempio")
             yield
         self.esegui(script)
 
@@ -423,6 +428,7 @@ class TestGriglie(BaseGui):
             t = app.tabelle_correnti()
             self.assertEqual(t["Studenti"].righe[0][c], "MODIFICATO")
             self.assertEqual(len(t["Studenti"].righe), 30)
+            self.assertEqual(len(sh.get_sheet_data()), 31, "30 studenti più la riga libera in fondo")
             self.assertEqual(sorted(t), sorted(FOGLI_DATI))
             for nome in FOGLI_DATI:
                 self.assertEqual(list(t[nome].intestazione), list(app.tabelle[nome].intestazione))
@@ -436,12 +442,13 @@ class TestGriglie(BaseGui):
             app.apri_file(f)
             yield
             sh = app.fogli["Studenti"]
-            n = len(sh.get_sheet_data())
+            n = len(app.tabelle_correnti()["Studenti"].righe)      # studenti veri, senza righe vuote
+            righe_griglia = len(sh.get_sheet_data())
             app.aggiungi_riga("Studenti")
-            self.assertEqual(len(sh.get_sheet_data()), n + 1)
+            self.assertEqual(len(sh.get_sheet_data()), righe_griglia + 1)
             self.assertEqual(len(app.tabelle_correnti()["Studenti"].righe), n,
-                             "la riga vuota non deve contare nei dati")
-            sh.set_cell_data(n, self.col(sh, "Cognome"), "NUOVO")
+                             "le righe vuote non devono contare nei dati")
+            sh.set_cell_data(righe_griglia, self.col(sh, "Cognome"), "NUOVO")
             self.assertEqual(len(app.tabelle_correnti()["Studenti"].righe), n + 1)
 
             # elimina senza selezione → messaggio nella barra di stato
@@ -449,13 +456,13 @@ class TestGriglie(BaseGui):
             sh.deselect("all")
             app.elimina_righe("Studenti")
             self.assertIn("Seleziona prima", app.lbl_stato.cget("text"))
-            self.assertEqual(len(sh.get_sheet_data()), n + 1)
+            self.assertEqual(len(sh.get_sheet_data()), righe_griglia + 1)
 
             # elimina con selezione
             sh.select_row(0)
             yield
             app.elimina_righe("Studenti")
-            self.assertEqual(len(sh.get_sheet_data()), n)
+            self.assertEqual(len(sh.get_sheet_data()), righe_griglia)
             self.assertNotEqual(app.tabelle_correnti()["Studenti"].righe[0][self.col(sh, "Cognome")], "AMATO")
 
             # anche dal menu Modifica, sul foglio corrente

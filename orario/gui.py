@@ -6,6 +6,7 @@ import json
 import os
 import platform
 import queue
+import re
 import shutil
 import subprocess
 import threading
@@ -35,9 +36,30 @@ IMPOSTAZIONI = Path.home() / ".orario_musicale.json"
 # Helvetica non esiste su Windows: Segoe UI è il carattere di sistema
 CARATTERE = "Segoe UI" if platform.system() == "Windows" else "Helvetica"
 BINDINGS = (
-    "single_select", "row_select", "column_select", "drag_select", "arrowkeys",
-    "right_click_popup_menu", "rc_insert_row", "rc_delete_row", "copy", "cut", "paste",
-    "delete", "undo", "edit_cell", "column_width_resize", "double_click_column_resize",
+    # selezione con mouse e trackpad
+    "single_select", "drag_select", "ctrl_select", "toggle_select", "row_select", "column_select", "select_all",
+    # spostamento con la tastiera, come in Excel
+    "arrowkeys", "tab", "next", "prior", "row_start_bindings", "table_start_bindings",
+    # copia, incolla, taglia, annulla, ripeti, cancella
+    "copy", "cut", "paste", "delete", "undo", "redo",
+    # modifica delle celle, ricerca e sostituzione
+    "edit_cell", "find", "replace",
+    # menu con il tasto destro, inserimento ed eliminazione di righe
+    "right_click_popup_menu", "rc_select", "rc_insert_row", "rc_delete_row",
+    # ridimensionamento di colonne e righe con il mouse
+    "column_width_resize", "double_click_column_resize", "row_height_resize", "double_click_row_resize",
+    # spostare le righe trascinandole, ordinare per colonna
+    "move_rows", "sort_rows",
+)
+OPZIONI_FOGLIO = dict(
+    paste_can_expand_x=False,        # le colonne sono fisse: incollando non se ne aggiungono
+    paste_can_expand_y=True,         # incollando più righe di quante ce ne sono, le righe si aggiungono
+    expand_sheet_if_paste_too_big=True,
+    paste_insert_row_limit=5000,
+    edit_cell_return="down",         # Invio scende di una riga, come in Excel
+    edit_cell_tab="right",           # Tab passa alla colonna successiva
+    max_undos=100,
+    set_cell_sizes_on_zoom=True,
 )
 
 
@@ -89,6 +111,8 @@ class App(ctk.CTk):
         self.orario: Orario | None = None
         self.coda: queue.Queue = queue.Queue()
         self._calcola_dopo_trasporti = False
+        self._sto_sistemando = False
+        self.modificato = False
 
         self.ultima_cartella_risultati: Path | None = None
         imp = _carica_impostazioni()
@@ -372,18 +396,61 @@ class App(ctk.CTk):
                       text_color="black", hover_color="gray60",
                       command=lambda n=nome: self.elimina_righe(n)).pack(side="left")
         suggerimento = {
-            FOGLIO_STUDENTI: "Doppio clic su una cella per modificarla. Le celle vuote in Docente 1/2 e KM vanno completate.",
-            FOGLIO_DOCENTI: "Scrivi X nelle ore disponibili, A nelle ore di accompagnamento fissate, vuoto se non disponibile.",
-        }.get(nome, "Doppio clic su una cella per modificarla. Tasto destro per inserire o eliminare righe.")
+            FOGLIO_STUDENTI: "Le celle gialle vanno completate. Si incolla da Excel con "
+                             + ("⌘V" if platform.system() == "Darwin" else "Ctrl+V") + ".",
+            FOGLIO_DOCENTI: "X nelle ore disponibili, A nelle ore di accompagnamento fissate, vuoto se non disponibile.",
+        }.get(nome, "Si lavora come in Excel: copia e incolla, Invio scende, Tab va a destra, tasto destro per le righe.")
         ctk.CTkLabel(comandi, text=suggerimento, text_color="gray45").pack(side="left", padx=16)
 
         sheet = Sheet(parent, headers=list(t.intestazione), data=[list(r) for r in t.righe],
                       theme="light blue", show_row_index=True, header_font=(CARATTERE, 12, "bold"),
                       font=(CARATTERE, 12, "normal"))
         sheet.enable_bindings(*BINDINGS)
+        sheet.set_options(**OPZIONI_FOGLIO)
         sheet.pack(fill="both", expand=True)
         self._adatta_colonne(sheet, nome)
         self.fogli[nome] = sheet
+        # una riga vuota in fondo, sempre pronta: scrivendoci dentro ne compare un'altra
+        sheet.bind("<<SheetModified>>", lambda _e, n=nome: self._foglio_modificato(n))
+        sheet.extra_bindings("end_edit_cell", lambda _e, n=nome: self._foglio_modificato(n))
+        self._riga_libera_in_fondo(nome)
+        # ingrandire e rimpicciolire con ⌘/Ctrl + rotella o gesto del trackpad
+        for combinazione in ("<Command-MouseWheel>", "<Control-MouseWheel>"):
+            for widget in (sheet.MT, sheet.RI, sheet.CH):
+                widget.bind(combinazione, lambda e, sh=sheet: self._zoom(sh, e.delta))
+
+    def _zoom(self, sheet: Sheet, delta: float) -> str:
+        try:
+            sheet.zoom_in() if delta > 0 else sheet.zoom_out()
+        except Exception:
+            pass
+        return "break"
+
+    def _riga_libera_in_fondo(self, nome: str) -> None:
+        """Tiene una riga vuota in coda, come il foglio infinito di Excel.
+
+        Le righe vuote non vengono salvate: `tabelle_correnti` le scarta.
+        """
+        sheet = self.fogli.get(nome)
+        if sheet is None or self._sto_sistemando:
+            return
+        try:
+            dati = sheet.get_sheet_data()
+            n_col = len(self.tabelle[nome].intestazione)
+            ultima_piena = not dati or any(str(v).strip() for v in dati[-1] if v is not None)
+            if ultima_piena:
+                self._sto_sistemando = True
+                sheet.insert_row([""] * n_col, redraw=True)
+        except Exception:
+            pass
+        finally:
+            self._sto_sistemando = False
+
+    def _foglio_modificato(self, nome: str) -> None:
+        self.modificato = True
+        if hasattr(self, "lbl_stato"):
+            self.lbl_stato.configure(text="Modifiche non salvate")
+        self.after_idle(lambda: self._riga_libera_in_fondo(nome))
 
     def _adatta_colonne(self, sheet: Sheet, nome: str) -> None:
         try:
@@ -450,6 +517,7 @@ class App(ctk.CTk):
             self.mostra_problemi([Problema("errore", self.percorso.name, f"Salvataggio non riuscito: {e}")],
                                  "Salvataggio non riuscito")
             return False
+        self.modificato = False
         self.lbl_stato.configure(text=f"Salvato alle {datetime.now():%H:%M}")
         return True
 
@@ -525,7 +593,9 @@ class App(ctk.CTk):
                     self.attesa.messaggio(ev[1])
                     continue
                 self.attesa.chiudi()
-                self.btn_calcola.configure(state="normal")
+                # importando dalla schermata iniziale il pulsante Calcola non esiste ancora
+                if hasattr(self, "btn_calcola") and self.btn_calcola.winfo_exists():
+                    self.btn_calcola.configure(state="normal")
                 if ev[0] == "ok":
                     self.orario = ev[1]
                     self.ultima_cartella_risultati = ev[3]
@@ -774,11 +844,14 @@ class FinestraProblemi(ctk.CTkToplevel):
 
 
 class FinestraTesto(ctk.CTkToplevel):
-    def __init__(self, master, titolo: str, testo: str) -> None:
+    def __init__(self, master, titolo: str, testo: str, sottotitolo: str = "") -> None:
         super().__init__(master)
         self.title(titolo)
         self.geometry("900x600")
         self.transient(master)
+        if sottotitolo:
+            ctk.CTkLabel(self, text=sottotitolo, font=ctk.CTkFont(size=14, weight="bold"),
+                         wraplength=850, justify="left").pack(padx=16, pady=(16, 0), anchor="w")
         box = ctk.CTkTextbox(self, font=ctk.CTkFont(size=13), wrap="word")
         box.pack(fill="both", expand=True, padx=16, pady=16)
         box.insert("end", testo)

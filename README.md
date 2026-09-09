@@ -72,20 +72,6 @@ Per l'applicazione da doppio clic: `./costruisci_app.sh` → `dist/Orario Musica
 [GUIDA INSTALLAZIONE WINDOWS.md](GUIDA%20INSTALLAZIONE%20WINDOWS.md). In breve, `costruisci_installer.bat` produce un `setup.exe`
 da consegnare, `windows_avvia.bat` prepara l'ambiente e avvia il programma da sorgente.
 
-## Importare i dati della scuola
-
-`importa_docx.py` legge il documento Word "classi e gruppi" e il file Excel dei recapiti, e scrive
-`input_orario.xlsx` già compilato: studenti con strumenti e docenti, elenco docenti con ore e ore di
-accompagnamento, i gruppi di musica da camera dalla tabella delle formazioni, i laboratori del mattino.
-Alla fine stampa l'elenco di quello che non ha potuto riconoscere.
-
-```bash
-.venv/bin/python importa_docx.py                      # prende i file più recenti nella cartella
-.venv/bin/python importa_docx.py classi.docx recapiti.xls input_orario.xlsx
-```
-
-Restano da compilare a mano solo le disponibilità dei docenti e le aule.
-
 ## Provarlo
 
 Il file `esempio/orario_2026-27.xlsx` contiene un dataset **inventato** già pronto: 30 ragazzi, 7 docenti,

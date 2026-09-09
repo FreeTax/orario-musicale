@@ -127,7 +127,7 @@ Ogni docente ha un'aula fissa per tutta la settimana.
 
 ## 4. Il file di input: `input_orario.xlsx`
 
-Creato dallo script `importa_docx.py`, che legge il Word e i recapiti e precompila quello che può.
+Si crea dal programma con **Nuovo file**, oppure si parte da quello dell'anno precedente.
 Si può rilanciare quando il Word cambia (attenzione: sovrascrive il file, quindi le compilazioni a mano
 vanno rifatte o copiate; in futuro si può fare uno script di aggiornamento che preserva le modifiche).
 
@@ -285,7 +285,7 @@ non l'indirizzo esatto dei minori: la precisione a livello di paese basta.
   mai stampati (valutazione di Francesco).
 
 **Come funziona nel programma (realizzato)**
-- Foglio Studenti: colonne **Comune, Indirizzo, Civico** (precompilate dai recapiti da `importa_docx.py`).
+- Foglio Studenti: colonne **Comune, Indirizzo, Civico** (da compilare con comune, via e civico).
   KM resta come ripiego.
 - Foglio Parametri: **Indirizzo della scuola** (punto di partenza) e **Soglia minuti "abita vicino"** (25).
 - Pulsante **🚌 Trasporti** nella barra in alto (e voce **Orario → Aggiorna trasporti** nel menu). Il pulsante
@@ -327,7 +327,7 @@ non l'indirizzo esatto dei minori: la precisione a livello di paese basta.
 ## 9. Piano di lavoro
 
 1. ✅ Analisi dei file e documento di progetto (questo file).
-2. ✅ `importa_docx.py` → `input_orario.xlsx` precompilato dal Word "classi e gruppi" e dai recapiti.
+2. ✅ File di input `input_orario.xlsx` con i dati veri della scuola (compilato una volta).
 3. ⬜ Arriva il dataset vero (9/9/2026): si completa `input_orario.xlsx` in Excel o nel programma.
 4. ✅ **Finestra 1 – Apertura**: pulsante "Apri file Excel…" e "Riapri ultimo file".
 5. ✅ **Finestra 2 – Dati**: schede Studenti / Docenti / Gruppi LMC / LMI / Parametri a griglia (tksheet),
@@ -355,13 +355,24 @@ orario/export_*.py      orario.xlsx e i tre PDF (export.py = punto unico)
 orario/gui.py           finestra (menu, schermata apertura, griglie, calcolo, risultati)
 orario/trasporti.py     Nominatim + Transitous: tempi di ritorno a casa per fascia → foglio Trasporti
 orario/template.py      costruzione del file di input (vuoto o precompilato)
-importa_docx.py         Word "classi e gruppi" + recapiti → input_orario.xlsx (studenti,
-                        docenti con ore, gruppi LMC, laboratori LMI; segnala cosa non riconosce)
 dati_prova.py           dati veri "riempiti" → input_prova.xlsx (contiene nomi reali: fuori dal repo)
 dati_esempio.py         dataset inventato → esempio/orario_2026-27.xlsx (30 studenti, 7 docenti)
 test_motore.py, test_export.py, test_e2e.py, test_gui.py   prove da terminale
 installer/installer.iss  script Inno Setup per l'installer Windows
 ```
+
+**Griglie come in Excel (9/9/2026)**: copia, taglia, incolla, annulla e ripeti con le scorciatoie di
+sistema; incollando più righe di quelle presenti le righe si aggiungono (fino a 5000); Invio scende, Tab va
+a destra; una riga vuota è sempre pronta in fondo e scrivendoci dentro ne compare un'altra (le righe vuote
+non vengono salvate); ricerca e sostituzione; tasto destro per inserire ed eliminare righe; righe
+trascinabili e ordinabili per colonna; ridimensionamento di righe e colonne col mouse o doppio clic;
+ingrandimento con ⌘/Ctrl e rotella o gesto del trackpad. Le colonne non si possono spostare, per non
+disallineare i nomi delle intestazioni su cui si basa la lettura.
+
+**Ordine delle colonne del foglio Studenti (9/9/2026, richiesta di Francesco)**: Classe, Cognome, Nome,
+Strumento 1, Docente 1, Strumento 2, Docente 2, poi le eccezioni (ore consecutive, giorno unico, giorni non
+disponibili), poi i dati di casa (Comune, Indirizzo, Civico, KM) e infine le Note. La lettura del file è per
+nome di colonna, quindi i file già compilati con l'ordine vecchio continuano a funzionare.
 
 **Test automatici (9/9/2026)** — 96 test, tutti verdi:
 - `test_e2e.py` (74): template e lettura/scrittura del file, tutti i messaggi dei controlli, invarianti del
@@ -383,27 +394,6 @@ installer/installer.iss  script Inno Setup per l'installer Windows
 - `motore.calcola` chiamato senza `controlli.controlla` produceva gruppi di musica da camera vuoti e un
   errore interno fuorviante: ora si ferma con un messaggio esplicito.
 - Tolto un controllo che non poteva mai scattare (giorno unico con più di 4 ore settimanali).
-
-**Importazione dal Word (9/9/2026)** — `importa_docx.py`, provato su "classi e gruppi 2026-27 AGGIORNATO
-AL 4-9.docx": 105 studenti (1ª=26, 2ª=18, 3ª=23, 4ª=21, 5ª=17), 24 docenti, 26 gruppi di musica da camera
-con tutti e 61 i ragazzi del triennio riconosciuti, 15 laboratori LMI. Punti delicati risolti:
-- le celle del Word sono unite in modo irregolare: i laboratori si allineano ai ragazzi confrontando gli
-  intervalli di colonne (`gridSpan`), non la posizione nella riga;
-- nei gruppi la barra separa i ragazzi ma è usata anche tra due strumenti ("Gori C. PF/OB 3ALM"): un pezzo
-  che inizia con una sigla di strumento è la continuazione del precedente;
-- i cognomi nei gruppi sono abbreviati ("Ballati" per "Ballati Niccolai", "Padilla R." per "Roberto
-  Padilla"): il confronto prova cognome esatto, prefisso, suffisso, iniziale del nome e classe;
-- a volte manca il separatore ("Bonaguidi VL Greco VL"): si divide sui cognomi riconosciuti;
-- refusi (Muzziaca → Muzzica) risolti per somiglianza, con segnalazione;
-- nomi degli stessi docenti scritti in più modi: Pacini/Pacini M., Bonaccorsi/Buonaccorsi,
-  Perc 2/Percussione 2, e la cattedra "Violino" senza titolare;
-- dal riassunto per strumento si ricavano ore e **ore di accompagnamento** (Pacini C 1, PF 5 5).
-
-**Controllo incrociato delle ore** (riassunto del Word contro elenchi delle classi): quadrano per tutti
-tranne Corsini (15 dichiarate, 13 negli elenchi), Violino 2 (1 contro 2) e Tavanti (13 contro 0). I numeri
-tornano se Bonacchi (1ª, violino, 2 ore) è di Corsini e il violino di Boldrini è della cattedra Violino 2,
-e se Tavanti e Innocenti sono la stessa cattedra PF 5 (13 ore in entrambi i conteggi). Da confermare con
-Giovanni.
 
 **Note tecniche emerse dalle prove (8/9/2026)**
 - Sui dati di prova (109 studenti, 23 docenti, 284 lezioni) il motore trova in 5 s una soluzione buona e in
@@ -432,8 +422,6 @@ python3 -m venv .venv
 # avvio del programma
 .venv/bin/python app.py
 
-# importa i dati della scuola dal Word e dai recapiti
-.venv/bin/python importa_docx.py
 # (facoltativo) dati inventati per provare
 .venv/bin/python dati_prova.py
 ```
