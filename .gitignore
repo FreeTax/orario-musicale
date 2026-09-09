@@ -1,0 +1,27 @@
+# ── Dati personali: NON vanno su GitHub ──────────────────────────────────────
+# Nomi, indirizzi e recapiti di studenti minorenni. Restano solo sul computer.
+*.docx
+*.xls
+Recapiti*
+classi e gruppi*
+ORARIO POMERIDIANO*.pdf
+input_orario.xlsx
+input_prova.xlsx
+esempio_orario.xlsx
+
+# ── Risultati ────────────────────────────────────────────────────────────────
+* - risultati/
+Risultati orario */
+output_prova*/
+*.tmp.xlsx
+
+# ── Ambiente e costruzione ───────────────────────────────────────────────────
+.venv/
+__pycache__/
+build/
+dist/
+installer_output/
+*.spec
+
+# ── Sistema ──────────────────────────────────────────────────────────────────
+.DS_Store
