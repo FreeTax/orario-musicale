@@ -380,6 +380,14 @@ sono omonimi, e negli LMI questo vale per ogni nome dell'elenco separato da virg
 dati veri: Gori Camilla di 3ª e Gori Yvaine di 5ª) la cella resta come scritta, così è chi compila a
 scegliere. La verifica dei nomi al momento del calcolo accetta entrambe le forme.
 
+**Difetto grave corretto (9/9/2026)**: applicando il menu a tendina dei nomi, la libreria delle griglie
+scriveva il primo valore dell'elenco in **tutte** le celle degli studenti dei gruppi (`edit_data=True` è il
+suo comportamento predefinito). Ora il menu si applica con `edit_data=False` e come opzione di colonna, non
+cella per cella: non tocca il contenuto ed è molto più leggero. Inoltre il completamento del nome agisce solo
+sulla cella appena scritta invece di riscrivere tutto il foglio, la riga libera in fondo non viene inserita
+mentre un editor di cella è aperto e la selezione viene ripristinata dopo l'inserimento: erano queste tre
+cose a far perdere il fuoco della cella durante la scrittura.
+
 **Griglie come in Excel (9/9/2026)**: copia, taglia, incolla, annulla e ripeti con le scorciatoie di
 sistema; incollando più righe di quelle presenti le righe si aggiungono (fino a 5000); Invio scende, Tab va
 a destra; una riga vuota è sempre pronta in fondo e scrivendoci dentro ne compare un'altra (le righe vuote

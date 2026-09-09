@@ -17,6 +17,7 @@ from pathlib import Path
 from tkinter import filedialog, messagebox
 
 import customtkinter as ctk
+from openpyxl.utils import get_column_letter
 from tksheet import Sheet
 
 from .costanti import (
@@ -113,6 +114,7 @@ class App(ctk.CTk):
         self._calcola_dopo_trasporti = False
         self._sto_sistemando = False
         self.modificato = False
+        self._elenco_suggerito: list[str] = []
 
         self.ultima_cartella_risultati: Path | None = None
         imp = _carica_impostazioni()
@@ -427,10 +429,7 @@ class App(ctk.CTk):
         self.fogli[nome] = sheet
         # una riga vuota in fondo, sempre pronta: scrivendoci dentro ne compare un'altra
         sheet.bind("<<SheetModified>>", lambda _e, n=nome: self._foglio_modificato(n))
-        sheet.extra_bindings("end_edit_cell", lambda _e, n=nome: self._foglio_modificato(n))
-        if nome in (FOGLIO_GRUPPI, FOGLIO_LMI):
-            sheet.extra_bindings("end_edit_cell", lambda _e, n=nome: (self._foglio_modificato(n),
-                                                                      self.after_idle(lambda: self._completa_nomi(n))))
+        sheet.extra_bindings("end_edit_cell", lambda ev, n=nome: self._cella_modificata(n, ev))
         self._riga_libera_in_fondo(nome)
         # ingrandire e rimpicciolire con ⌘/Ctrl + rotella o gesto del trackpad
         for combinazione in ("<Command-MouseWheel>", "<Control-MouseWheel>"):
@@ -452,17 +451,41 @@ class App(ctk.CTk):
         sheet = self.fogli.get(nome)
         if sheet is None or self._sto_sistemando:
             return
+        if getattr(getattr(sheet.MT, "text_editor", None), "open", False):
+            # si sta scrivendo in una cella: inserire una riga adesso chiuderebbe l'editor
+            self.after(400, lambda: self._riga_libera_in_fondo(nome))
+            return
         try:
             dati = sheet.get_sheet_data()
             n_col = len(self.tabelle[nome].intestazione)
             ultima_piena = not dati or any(str(v).strip() for v in dati[-1] if v is not None)
             if ultima_piena:
                 self._sto_sistemando = True
+                selezione = sheet.get_currently_selected()
                 sheet.insert_row([""] * n_col, redraw=True)
+                if selezione:  # inserire una riga non deve spostare il cursore
+                    try:
+                        sheet.select_cell(selezione.row, selezione.column, redraw=True)
+                    except Exception:
+                        pass
         except Exception:
             pass
         finally:
             self._sto_sistemando = False
+
+    def _cella_modificata(self, nome: str, evento) -> None:
+        """Fine modifica di una cella: segna il file come da salvare e completa il nome scritto."""
+        self._foglio_modificato(nome)
+        if nome not in (FOGLIO_GRUPPI, FOGLIO_LMI):
+            return
+        r = getattr(evento, "row", None)
+        c = getattr(evento, "column", None)
+        if r is None or c is None:
+            posizione = getattr(evento, "loc", None)
+            if posizione is not None and len(posizione) >= 2:
+                r, c = posizione[0], posizione[1]
+        if r is not None and c is not None:
+            self.after_idle(lambda: self._completa_nomi(nome, r, c))
 
     def _foglio_modificato(self, nome: str) -> None:
         self.modificato = True
@@ -515,64 +538,62 @@ class App(ctk.CTk):
         return t
 
     def _aggiorna_suggerimenti(self) -> None:
-        """Mette il menu a tendina con "Cognome Nome" sulle celle degli studenti dei gruppi."""
+        """Menu a tendina con "Cognome Nome" sulle colonne degli studenti dei gruppi.
+
+        Il menu è solo un suggerimento: `edit_data=False` perché altrimenti la libreria
+        scriverebbe il primo nome dell'elenco in tutte le celle.
+        """
         sheet = self.fogli.get(FOGLIO_GRUPPI)
         if sheet is None or not sheet.winfo_exists():
             return
         elenco, _ = self._elenco_studenti()
-        if not elenco:
+        if not elenco or elenco == self._elenco_suggerito:
             return
         try:
             intest = self.tabelle[FOGLIO_GRUPPI].intestazione
             colonne = [i for i, h in enumerate(intest) if h.strip().lower().startswith("studente")]
             if not colonne:
                 return
-            righe = max(sheet.get_total_rows(), 1)
-            for c in colonne:
-                sheet.dropdown(sheet.span(0, c, righe, c + 1), values=elenco, state="normal",
-                               validate_input=False, redraw=False)
+            for c in colonne:  # opzione di colonna: più leggera di una per ogni cella
+                lettera = get_column_letter(c + 1)
+                sheet.dropdown(f"{lettera}:{lettera}", values=elenco, state="normal",
+                               validate_input=False, edit_data=False, redraw=False)
             sheet.redraw()
+            self._elenco_suggerito = elenco
         except Exception:
             pass
 
-    def _completa_nomi(self, nome_foglio: str) -> None:
-        """Dopo una modifica espande i cognomi in "Cognome Nome", dove non c'è ambiguità."""
+    def _completa_nomi(self, nome_foglio: str, riga: int | None = None, colonna: int | None = None) -> None:
+        """Espande in "Cognome Nome" il cognome appena scritto, se non ci sono omonimi.
+
+        Tocca solo la cella modificata: così non si perde la selezione e la griglia non lampeggia.
+        """
         sheet = self.fogli.get(nome_foglio)
-        if sheet is None or self._sto_sistemando:
+        if sheet is None or self._sto_sistemando or riga is None or colonna is None:
+            return
+        intest = self.tabelle[nome_foglio].intestazione
+        if colonna >= len(intest):
+            return
+        titolo = intest[colonna].strip().lower()
+        if nome_foglio == FOGLIO_GRUPPI and not titolo.startswith("studente"):
+            return
+        if nome_foglio == FOGLIO_LMI and not titolo.startswith("studenti"):
             return
         _, per_cognome = self._elenco_studenti()
         if not per_cognome:
             return
-        intest = self.tabelle[nome_foglio].intestazione
-        if nome_foglio == FOGLIO_GRUPPI:
-            colonne = [i for i, h in enumerate(intest) if h.strip().lower().startswith("studente")]
-            separatore = None
-        else:
-            colonne = [i for i, h in enumerate(intest) if h.strip().lower().startswith("studenti")]
-            separatore = ","
-        if not colonne:
-            return
         try:
-            self._sto_sistemando = True
-            dati = sheet.get_sheet_data()
-            cambiate = 0
-            for r, riga in enumerate(dati):
-                for c in colonne:
-                    if c >= len(riga):
-                        continue
-                    testo = str(riga[c] or "")
-                    if not testo.strip():
-                        continue
-                    if separatore:
-                        pezzi = [self._completa(x, per_cognome) for x in testo.split(separatore)]
-                        nuovo = ", ".join(x for x in pezzi if x)
-                    else:
-                        nuovo = self._completa(testo, per_cognome)
-                    if nuovo != testo:
-                        sheet.set_cell_data(r, c, nuovo, redraw=False)
-                        cambiate += 1
-            if cambiate:
-                sheet.redraw()
+            testo = str(sheet.get_cell_data(riga, colonna) or "")
+            if not testo.strip():
+                return
+            if nome_foglio == FOGLIO_LMI:
+                pezzi = [self._completa(x, per_cognome) for x in testo.split(",")]
+                nuovo = ", ".join(x for x in pezzi if x)
+            else:
+                nuovo = self._completa(testo, per_cognome)
+            if nuovo != testo:
+                self._sto_sistemando = True
+                sheet.set_cell_data(riga, colonna, nuovo, redraw=True)
         except Exception:
             pass
         finally:
