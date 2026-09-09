@@ -13,6 +13,9 @@ N_FASCE = N_GIORNI * N_ORE  # 20
 # Nomi delle 20 colonne di disponibilità nel foglio Docenti: "Lun 13:30" ... "Ven 16:30"
 FASCE = [f"{g} {o}" for g in GIORNI for o in ORE]
 
+# Una aula per giorno: il docente può cambiare stanza da un giorno all'altro
+COLONNE_AULE = [f"Aula {g}" for g in GIORNI]
+
 
 def fascia(giorno: int, ora: int) -> int:
     return giorno * N_ORE + ora

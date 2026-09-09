@@ -145,8 +145,12 @@ def main(uscita: Path) -> None:
     for nome, strumenti, aula, accomp in DOCENTI:
         servono = ore[nome]
         giorni = min(5, max(2, -(-(servono + MARGINE_FASCE) // N_ORE)))
+        # aula fissa tutta la settimana, tranne un docente che il mercoledì e il giovedì cambia stanza
+        aule = [aula] * 5
+        if nome == "Verdi":
+            aule[2] = aule[3] = "M8"
         righe_docenti.append({
-            "nome": nome, "strumenti": ", ".join(strumenti), "aula": aula, "ore_accomp": accomp,
+            "nome": nome, "strumenti": ", ".join(strumenti), "aule": aule, "ore_accomp": accomp,
             "giorni": giorni, "ore": servono,
         })
 

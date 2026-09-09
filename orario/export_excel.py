@@ -66,7 +66,7 @@ def _foglio_giorno(wb: Workbook, orario: Orario, g: int, doppi: set[str], mappa)
     _intestazione(ws.cell(3, 1), "Strumento")
     for j, d in enumerate(dati.docenti, start=2):
         _intestazione(ws.cell(1, j), d.nome, LARGHEZZA_DOCENTE, ws)
-        _intestazione(ws.cell(2, j), d.aula or "-")
+        _intestazione(ws.cell(2, j), d.aula(g) or "-")
         _intestazione(ws.cell(3, j), d.strumenti.title() or "-")
     for o in range(N_ORE):
         r = 4 + o
@@ -128,11 +128,14 @@ def _foglio_docenti(wb: Workbook, orario: Orario, doppi: set[str], mappa) -> Non
     _intestazione(ws.cell(3, 2), "Strumento")
     for j, d in enumerate(dati.docenti, start=3):
         _intestazione(ws.cell(1, j), d.nome, LARGHEZZA_DOCENTE, ws)
-        _intestazione(ws.cell(2, j), d.aula or "-")
+        _intestazione(ws.cell(2, j), d.aula() or "varia")   # nel riepilogo l'aula cambia di giorno in giorno
         _intestazione(ws.cell(3, j), d.strumenti.title() or "-")
     griglie = {d.nome: griglia_docente(orario, d.nome, doppi, mappa) for d in dati.docenti}
     for g in range(N_GIORNI):
         r0 = 4 + g * N_ORE
+        for j, d in enumerate(dati.docenti, start=3):
+            if not d.aula_unica and d.aula(g):
+                _intestazione(ws.cell(r0, j), f"aula {d.aula(g)}")
         ws.merge_cells(start_row=r0, start_column=1, end_row=r0 + N_ORE - 1, end_column=1)
         _intestazione(ws.cell(r0, 1), GIORNI_LUNGHI[g])
         for o in range(N_ORE):

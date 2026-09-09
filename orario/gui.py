@@ -20,7 +20,7 @@ import customtkinter as ctk
 from tksheet import Sheet
 
 from .costanti import (
-    ETICHETTA_ACCOMP, FOGLI_DATI, FOGLIO_DOCENTI, FOGLIO_STUDENTI, GIORNI_LUNGHI,
+    ETICHETTA_ACCOMP, FOGLI_DATI, FOGLIO_DOCENTI, FOGLIO_GRUPPI, FOGLIO_LMI, FOGLIO_STUDENTI, GIORNI_LUNGHI,
     N_ORE, ORE, ORE_FINE, ORE_LABEL, TIPO_ACCOMP, TIPO_LMC, TIPO_STRUM1, fascia,
 )
 from .lettura import (
@@ -142,6 +142,8 @@ class App(ctk.CTk):
         m_mod = tk.Menu(barra, tearoff=0)
         m_mod.add_command(label="Aggiungi riga al foglio corrente", command=self.aggiungi_riga_corrente)
         m_mod.add_command(label="Elimina righe selezionate", command=self.elimina_righe_corrente)
+        m_mod.add_separator()
+        m_mod.add_command(label="Compila i docenti dagli studenti", command=self.compila_docenti)
         m_mod.add_separator()
         m_mod.add_command(label="Suggerimento: doppio clic su una cella per modificarla; tasto destro per altre azioni", state="disabled")
         barra.add_cascade(label="Modifica", menu=m_mod)
@@ -338,8 +340,9 @@ class App(ctk.CTk):
         self.chk_precedente.pack(side="right", padx=12)
         self._aggiorna_info_precedente()
         self.after(200, self._aggiorna_info_trasporti)
+        self.after(250, self._aggiorna_suggerimenti)
 
-        self.tabs = ctk.CTkTabview(f, anchor="nw")
+        self.tabs = ctk.CTkTabview(f, anchor="nw", command=self._cambio_scheda)
         self.tabs.pack(fill="both", expand=True, padx=8, pady=(0, 8))
         self.fogli = {}
         for nome in FOGLI_DATI:
@@ -373,6 +376,14 @@ class App(ctk.CTk):
             self.btn_trasporti.configure(text=f"🚌  Trasporti {pronti}/{totali}", state="normal", fg_color="#3a6ea5",
                                          hover_color="#2f5a86")
 
+    def _cambio_scheda(self) -> None:
+        """Aprendo la scheda dei gruppi si aggiorna l'elenco dei nomi suggeriti."""
+        try:
+            if self.tabs.get() == FOGLIO_GRUPPI:
+                self._aggiorna_suggerimenti()
+        except Exception:
+            pass
+
     def _aggiorna_info_precedente(self) -> None:
         prec = None
         try:
@@ -395,6 +406,10 @@ class App(ctk.CTk):
         ctk.CTkButton(comandi, text="− Elimina righe selezionate", width=190, height=28, fg_color="gray70",
                       text_color="black", hover_color="gray60",
                       command=lambda n=nome: self.elimina_righe(n)).pack(side="left")
+        if nome == FOGLIO_DOCENTI:
+            ctk.CTkButton(comandi, text="👥  Compila dagli studenti", width=200, height=28,
+                          fg_color="#3a6ea5", hover_color="#2f5a86",
+                          command=self.compila_docenti).pack(side="left", padx=(6, 0))
         suggerimento = {
             FOGLIO_STUDENTI: "Le celle gialle vanno completate. Si incolla da Excel con "
                              + ("⌘V" if platform.system() == "Darwin" else "Ctrl+V") + ".",
@@ -413,6 +428,9 @@ class App(ctk.CTk):
         # una riga vuota in fondo, sempre pronta: scrivendoci dentro ne compare un'altra
         sheet.bind("<<SheetModified>>", lambda _e, n=nome: self._foglio_modificato(n))
         sheet.extra_bindings("end_edit_cell", lambda _e, n=nome: self._foglio_modificato(n))
+        if nome in (FOGLIO_GRUPPI, FOGLIO_LMI):
+            sheet.extra_bindings("end_edit_cell", lambda _e, n=nome: (self._foglio_modificato(n),
+                                                                      self.after_idle(lambda: self._completa_nomi(n))))
         self._riga_libera_in_fondo(nome)
         # ingrandire e rimpicciolire con ⌘/Ctrl + rotella o gesto del trackpad
         for combinazione in ("<Command-MouseWheel>", "<Control-MouseWheel>"):
@@ -462,6 +480,173 @@ class App(ctk.CTk):
                         sheet.column_width(i, 48)
         except Exception:
             pass
+
+    # ── Nomi degli studenti: suggerimento e completamento ────────────────────
+    def _elenco_studenti(self) -> tuple[list[str], dict[str, list[str]]]:
+        """(elenco "Cognome Nome" ordinato, cognome → nomi completi con quel cognome)."""
+        try:
+            ts = self.tabelle_correnti()[FOGLIO_STUDENTI]
+        except Exception:
+            return [], {}
+        elenco: list[str] = []
+        per_cognome: dict[str, list[str]] = {}
+        for r in ts.righe:
+            cognome = ts.valore(r, "Cognome").strip()
+            nome = ts.valore(r, "Nome").strip()
+            if not cognome:
+                continue
+            completo = f"{cognome.title()} {nome.title()}".strip()
+            elenco.append(completo)
+            per_cognome.setdefault(cognome.upper(), []).append(completo)
+        return sorted(set(elenco)), per_cognome
+
+    def _completa(self, testo: str, per_cognome: dict[str, list[str]]) -> str:
+        """"Rossi" → "Rossi Mario" se il cognome è di uno solo; altrimenti lascia com'è."""
+        t = " ".join(testo.split())
+        if not t:
+            return t
+        omonimi = per_cognome.get(t.upper())
+        if omonimi and len(omonimi) == 1:
+            return omonimi[0]
+        # cognome composto scritto per intero, senza nome
+        for cognome, nomi in per_cognome.items():
+            if len(nomi) == 1 and cognome == t.upper():
+                return nomi[0]
+        return t
+
+    def _aggiorna_suggerimenti(self) -> None:
+        """Mette il menu a tendina con "Cognome Nome" sulle celle degli studenti dei gruppi."""
+        sheet = self.fogli.get(FOGLIO_GRUPPI)
+        if sheet is None or not sheet.winfo_exists():
+            return
+        elenco, _ = self._elenco_studenti()
+        if not elenco:
+            return
+        try:
+            intest = self.tabelle[FOGLIO_GRUPPI].intestazione
+            colonne = [i for i, h in enumerate(intest) if h.strip().lower().startswith("studente")]
+            if not colonne:
+                return
+            righe = max(sheet.get_total_rows(), 1)
+            for c in colonne:
+                sheet.dropdown(sheet.span(0, c, righe, c + 1), values=elenco, state="normal",
+                               validate_input=False, redraw=False)
+            sheet.redraw()
+        except Exception:
+            pass
+
+    def _completa_nomi(self, nome_foglio: str) -> None:
+        """Dopo una modifica espande i cognomi in "Cognome Nome", dove non c'è ambiguità."""
+        sheet = self.fogli.get(nome_foglio)
+        if sheet is None or self._sto_sistemando:
+            return
+        _, per_cognome = self._elenco_studenti()
+        if not per_cognome:
+            return
+        intest = self.tabelle[nome_foglio].intestazione
+        if nome_foglio == FOGLIO_GRUPPI:
+            colonne = [i for i, h in enumerate(intest) if h.strip().lower().startswith("studente")]
+            separatore = None
+        else:
+            colonne = [i for i, h in enumerate(intest) if h.strip().lower().startswith("studenti")]
+            separatore = ","
+        if not colonne:
+            return
+        try:
+            self._sto_sistemando = True
+            dati = sheet.get_sheet_data()
+            cambiate = 0
+            for r, riga in enumerate(dati):
+                for c in colonne:
+                    if c >= len(riga):
+                        continue
+                    testo = str(riga[c] or "")
+                    if not testo.strip():
+                        continue
+                    if separatore:
+                        pezzi = [self._completa(x, per_cognome) for x in testo.split(separatore)]
+                        nuovo = ", ".join(x for x in pezzi if x)
+                    else:
+                        nuovo = self._completa(testo, per_cognome)
+                    if nuovo != testo:
+                        sheet.set_cell_data(r, c, nuovo, redraw=False)
+                        cambiate += 1
+            if cambiate:
+                sheet.redraw()
+        except Exception:
+            pass
+        finally:
+            self._sto_sistemando = False
+
+    def compila_docenti(self) -> None:
+        """Riempie il foglio Docenti con i nomi che compaiono negli studenti e nei gruppi.
+
+        Aggiunge i docenti mancanti e completa la colonna degli strumenti. Non tocca aule,
+        disponibilità, ore di accompagnamento e note già inseriti.
+        """
+        if not self._con_file():
+            return
+        tabelle = self.tabelle_correnti()
+        ts, tg, td = tabelle[FOGLIO_STUDENTI], tabelle.get(FOGLIO_GRUPPI), tabelle[FOGLIO_DOCENTI]
+
+        # docente → strumenti che insegna
+        trovati: dict[str, set[str]] = {}
+        for r in ts.righe:
+            for col_doc, col_strum in (("Docente 1", "Strumento 1"), ("Docente 2", "Strumento 2")):
+                nome = ts.valore(r, col_doc)
+                if nome:
+                    trovati.setdefault(nome, set()).add(ts.valore(r, col_strum).upper())
+        if tg is not None:
+            for r in tg.righe:
+                nome = tg.valore(r, "Docente")
+                if nome and any(tg.valore(r, f"Studente {k}") for k in range(1, 6)):
+                    trovati.setdefault(nome, set()).add("MUSICA DA CAMERA")
+        if not trovati:
+            messagebox.showinfo("Compila dagli studenti",
+                                "Nel foglio Studenti non c'è nessun docente: compila prima le colonne "
+                                "Docente 1 e Docente 2.")
+            return
+
+        i_nome = td.colonna("Docente")
+        i_strum = td.colonna("Strumento")
+        n_col = len(td.intestazione)
+        gia_presenti = {r[i_nome].strip(): r for r in td.righe if i_nome < len(r) and r[i_nome].strip()}
+
+        aggiunti, aggiornati = [], []
+        for nome in sorted(trovati):
+            strumenti = sorted(x for x in trovati[nome] if x)
+            riga = gia_presenti.get(nome)
+            if riga is None:
+                nuova = [""] * n_col
+                nuova[i_nome] = nome
+                nuova[i_strum] = ", ".join(strumenti)
+                td.righe.append(nuova)
+                aggiunti.append(nome)
+            else:
+                vecchi = {x.strip().upper() for x in (riga[i_strum] if i_strum < len(riga) else "").split(",") if x.strip()}
+                unione = sorted(vecchi | set(strumenti))
+                if unione != sorted(vecchi):
+                    riga[i_strum] = ", ".join(unione)
+                    aggiornati.append(nome)
+        non_usati = [n for n in gia_presenti if n not in trovati]
+
+        td.righe.sort(key=lambda r: r[i_nome].strip().lower() if i_nome < len(r) else "")
+        self.fogli[FOGLIO_DOCENTI].set_sheet_data([list(r) for r in td.righe], redraw=True)
+        self._adatta_colonne(self.fogli[FOGLIO_DOCENTI], FOGLIO_DOCENTI)
+        self._riga_libera_in_fondo(FOGLIO_DOCENTI)
+        self.tabs.set(FOGLIO_DOCENTI)
+        self.modificato = True
+
+        parti = [f"Docenti trovati negli studenti e nei gruppi: {len(trovati)}."]
+        parti.append(f"Aggiunti {len(aggiunti)}: " + ", ".join(aggiunti) if aggiunti else "Nessun docente da aggiungere.")
+        if aggiornati:
+            parti.append(f"Strumenti completati per {len(aggiornati)}: " + ", ".join(aggiornati) + ".")
+        if non_usati:
+            parti.append(f"Nel foglio Docenti ce ne sono {len(non_usati)} che nessuno studente ha come docente "
+                         f"(nomi scritti diversamente?): " + ", ".join(non_usati) + ".")
+        parti.append("\nRestano da compilare a mano le aule e le disponibilità. Premi Salva per tenere le modifiche.")
+        messagebox.showinfo("Compila dagli studenti", "\n\n".join(parti))
+        self.lbl_stato.configure(text=f"Docenti compilati: {len(aggiunti)} aggiunti, {len(aggiornati)} completati")
 
     def aggiungi_riga(self, nome: str) -> None:
         sheet = self.fogli[nome]
@@ -740,7 +925,7 @@ class App(ctk.CTk):
 
         for g, giorno in enumerate(GIORNI_LUNGHI):
             t = sotto.add(giorno)
-            intest = [f"{d.nome}\n{d.aula}" for d in docenti]
+            intest = [f"{d.nome}\n{d.aula(g)}" for d in docenti]
             righe = []
             for o in range(N_ORE):
                 riga = []

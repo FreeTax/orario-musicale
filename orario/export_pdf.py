@@ -101,9 +101,10 @@ def _tabella_giorno(orario: Orario, g: int, doppi: set[str], mappa, larghezza_ut
         return _testo(d.nome, _stile("nome", _dimensiona(parola, interno, size), bold=True))
 
     def aula(d) -> Paragraph:
-        if not d.aula:
+        testo = d.aula(g)
+        if not testo:
             return _testo("-", st_int_n)
-        return Paragraph(f"AULA<br/>{escape(d.aula)}", _stile("aula", _dimensiona(d.aula, interno, size), bold=True))
+        return Paragraph(f"AULA<br/>{escape(testo)}", _stile("aula", _dimensiona(testo, interno, size), bold=True))
 
     righe = [
         [_testo(GIORNI_LUNGHI[g], _stile("int", size, bold=True))] + [nome(d) for d in dati.docenti],
@@ -228,7 +229,11 @@ def esporta_pdf_docenti(orario: Orario, percorso: Path) -> Path:
         if i:
             flussi.append(PageBreak())
         lezioni = orario.lezioni_docente(d.nome)
-        info = [f"Strumento: {d.strumenti.title() or '-'}", f"Aula: {d.aula or '-'}",
+        if d.aula_unica:
+            aule = f"Aula: {d.aula() or '-'}"
+        else:
+            aule = "Aule: " + ", ".join(f"{GIORNI[i]} {a or '-'}" for i, a in enumerate(d.aule))
+        info = [f"Strumento: {d.strumenti.title() or '-'}", aule,
                 f"Ore in orario: {len(lezioni)} (disponibilità: {len(d.disponibilita)} fasce)"]
         flussi += [
             _testo(titolo_orario(orario.dati), st_tit), Spacer(1, 10),

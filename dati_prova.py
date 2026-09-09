@@ -13,7 +13,7 @@ from collections import Counter, defaultdict
 from pathlib import Path
 
 from orario.costanti import FASCE, FOGLIO_DOCENTI, FOGLIO_GRUPPI, FOGLIO_LMI, FOGLIO_PARAMETRI, FOGLIO_STUDENTI, N_ORE
-from orario.lettura import leggi_tabelle, salva_tabelle
+from orario.lettura import aggiorna_struttura, leggi_tabelle, salva_tabelle
 
 ROOT = Path(__file__).parent
 SORGENTE = ROOT / "input_orario.xlsx"
@@ -32,6 +32,7 @@ def strum(s: str) -> str:
 def main() -> None:
     shutil.copy(SORGENTE, DESTINAZIONE)
     tab = leggi_tabelle(DESTINAZIONE)
+    aggiorna_struttura(tab)   # il file di partenza può essere di una versione precedente
     ts, td, tg, tl = tab[FOGLIO_STUDENTI], tab[FOGLIO_DOCENTI], tab[FOGLIO_GRUPPI], tab[FOGLIO_LMI]
     c = {n: ts.colonna(n) for n in ["Classe", "Cognome", "Nome", "KM", "Strumento 1", "Docente 1",
                                     "Strumento 2", "Docente 2", "Ore consecutive", "Giorno unico", "Giorni NON"]}
@@ -102,11 +103,13 @@ def main() -> None:
         n += 1
 
     # ── docenti: nuovi (prova), ore accompagnamento, disponibilità ──
-    cd = {n: td.colonna(n) for n in ["Docente", "Strumento", "Aula", "Ore accomp"]}
+    cd = {n: td.colonna(n) for n in ["Docente", "Strumento", "Aula Lun", "Ore accomp"]}
     idx_f = [td.colonna(f) for f in FASCE]
     for nome, s in nuovi_docenti.items():
         riga = [""] * len(td.intestazione)
-        riga[cd["Docente"]], riga[cd["Strumento"]], riga[cd["Aula"]], riga[cd["Ore accomp"]] = nome, s, "M 12", "0"
+        riga[cd["Docente"]], riga[cd["Strumento"]], riga[cd["Ore accomp"]] = nome, s, "0"
+        for k in range(5):
+            riga[cd["Aula Lun"] + k] = "M 12"
         td.righe.append(riga)
     for r in td.righe:
         nome = r[cd["Docente"]]

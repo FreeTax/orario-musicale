@@ -17,7 +17,7 @@ from openpyxl import load_workbook
 from datetime import datetime
 
 from .costanti import (
-    FASCE, FOGLI_DATI, FOGLIO_DOCENTI, FOGLIO_GRUPPI, FOGLIO_LMI, FOGLIO_ORARIO,
+    COLONNE_AULE, FASCE, FOGLI_DATI, FOGLIO_DOCENTI, FOGLIO_GRUPPI, FOGLIO_LMI, FOGLIO_ORARIO,
     FOGLIO_PARAMETRI, FOGLIO_STUDENTI, FOGLIO_TRASPORTI, GIORNI, GIORNI_LUNGHI, ORE, ORE_FINE, fascia,
 )
 from .modello import (
@@ -272,7 +272,11 @@ def costruisci_dati(tabelle: dict[str, Tabella], percorso: Path | None = None) -
         if accomp_txt and not re.fullmatch(r"\d+", accomp_txt):
             problemi.append(Problema("errore", f"{FOGLIO_DOCENTI}: {nome}",
                                      f"Ore accompagnamento '{accomp_txt}' non è un numero intero."))
-        docenti.append(Docente(nome=nome, strumenti=v("Strumento"), aula=v("Aula"),
+        aule = [v(nome_colonna) for nome_colonna in COLONNE_AULE]
+        if not any(aule):  # file creato quando l'aula era una sola per tutta la settimana
+            unica = v("Aula")
+            aule = [unica] * len(COLONNE_AULE)
+        docenti.append(Docente(nome=nome, strumenti=v("Strumento"), aule=aule,
                                ore_accomp=accomp, disponibilita=disp, note=v("Note"), riga=i))
 
     # Gruppi LMC (gli id studente vengono risolti dai controlli)
@@ -478,6 +482,20 @@ def aggiorna_struttura(tabelle: dict[str, Tabella]) -> list[str]:
                 for r in ts.righe:
                     r.insert(pos, "")
                 modifiche.append(f"colonna '{colonna}' nel foglio {FOGLIO_STUDENTI}")
+    td = tabelle.get(FOGLIO_DOCENTI)
+    if td is not None and td.intestazione:
+        presenti = [h.strip().lower() for h in td.intestazione]
+        if "aula" in presenti and not any(h == "aula lun" for h in presenti):
+            # la vecchia colonna "Aula" diventa cinque colonne, una per giorno
+            i_aula = presenti.index("aula")
+            td.intestazione[i_aula] = COLONNE_AULE[0]
+            for k, nome_col in enumerate(COLONNE_AULE[1:], start=1):
+                td.intestazione.insert(i_aula + k, nome_col)
+                for r in td.righe:
+                    r.insert(i_aula + k, r[i_aula] if i_aula < len(r) else "")
+            modifiche.append(f"colonne {', '.join(COLONNE_AULE)} nel foglio {FOGLIO_DOCENTI} "
+                             "(prima l'aula era una sola per tutta la settimana)")
+
     tp = tabelle.get(FOGLIO_PARAMETRI)
     if tp is not None and tp.intestazione:
         chiavi = [tp.valore(r, "Parametro").lower() for r in tp.righe]

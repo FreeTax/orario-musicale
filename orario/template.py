@@ -10,7 +10,9 @@ from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.datavalidation import DataValidation
 
-from .costanti import FASCE, FOGLIO_DOCENTI, FOGLIO_GRUPPI, FOGLIO_LMI, FOGLIO_PARAMETRI, FOGLIO_STUDENTI
+from .costanti import (
+    COLONNE_AULE, FASCE, FOGLIO_DOCENTI, FOGLIO_GRUPPI, FOGLIO_LMI, FOGLIO_PARAMETRI, FOGLIO_STUDENTI,
+)
 
 HEAD_FILL = PatternFill("solid", fgColor="DDEBF7")
 EX_FILL = PatternFill("solid", fgColor="F2F2F2")
@@ -26,10 +28,11 @@ LARGHEZZE_STUDENTI = {"Classe": 7, "Cognome": 22, "Nome": 22, "Strumento 1": 15,
                       "Strumento 2": 15, "Docente 2": 16, "Ore consecutive (SI/NO)": 13,
                       "Giorno unico (SI/NO)": 13, "Giorni NON disponibili": 17, "Comune": 20,
                       "Indirizzo": 26, "Civico": 8, "KM": 7, "Note": 30}
-COLONNE_DOCENTI = ["Docente", "Strumento/i", "Aula", "Ore accompagnamento"] + FASCE + ["Note"]
+COLONNE_DOCENTI = (["Docente", "Strumento/i"] + COLONNE_AULE + ["Ore accompagnamento"]
+                   + FASCE + ["Note"])
 COLONNE_GRUPPI = ["Gruppo", "Docente", "Studente 1", "Studente 2", "Studente 3", "Studente 4", "Studente 5", "Note"]
 COLONNE_LMI = ["Laboratorio", "Classi", "Docente", "Aula", "Giorno e ora (mattino)",
-               "Studenti (cognomi separati da virgola)", "Note"]
+               "Studenti (Cognome Nome, separati da virgola)", "Note"]
 COLONNE_PARAMETRI = ["Parametro", "Valore", "Spiegazione"]
 PARAMETRI_DEFAULT = [
     ("Max rientri per ragazzo", 2, "Numero massimo di pomeriggi a settimana (di norma). Chi abita vicino può arrivare al valore sotto."),
@@ -56,7 +59,10 @@ ISTRUZIONI = [
     "  KM: distanza casa-scuola, usata quando mancano i dati dei mezzi. Senza né KM né mezzi si è trattati come vicini.",
     "",
     "FOGLIO 'Docenti' – un rigo per docente, con la disponibilità oraria.",
-    "  Aula: aula fissa del docente, scritta in testa alla sua colonna nell'orario.",
+    "  Nel programma il pulsante 'Compila dagli studenti' aggiunge da solo i docenti che compaiono nel foglio",
+    "  Studenti e nei gruppi, con i loro strumenti: restano da mettere a mano solo aule e disponibilità.",
+    "  Aula Lun … Aula Ven: l'aula del docente in ciascun giorno (se è sempre la stessa, si ripete).",
+    "  Viene scritta in testa alla sua colonna nell'orario del giorno.",
     "  Colonne Lun 13:30 … Ven 16:30: scrivi X nelle ore in cui il docente È disponibile. Vuoto = non disponibile.",
     "  Ore accompagnamento: quante ore a settimana il docente (di pianoforte) fa da pianista accompagnatore. 0 se nessuna.",
     "  Il programma le colloca da solo in coda alle lezioni del docente e nell'orario scrive 'Pianista accomp.'.",
@@ -64,10 +70,12 @@ ISTRUZIONI = [
     "  Tutte le lezioni del docente (strumento e musica da camera) usano la stessa disponibilità.",
     "",
     "FOGLIO 'Gruppi LMC' – un rigo per gruppo di musica da camera (classi 3, 4, 5), da 2 a 5 ragazzi.",
-    "  Scrivi i cognomi come nel foglio 'Studenti' (se due ragazzi hanno lo stesso cognome, aggiungi il nome).",
+    "  Scrivi 'Cognome Nome' come nel foglio 'Studenti'. Nel programma c'è il menu a tendina con tutti i ragazzi:",
+    "  se scrivi solo il cognome e non ci sono omonimi, il nome viene aggiunto da solo.",
     "",
     "FOGLIO 'LMI' – laboratori di musica d'insieme (2 ore, orario del MATTINO). Un rigo per laboratorio.",
     "  Il programma NON li calcola: li ricopia così come sono in una pagina dell'orario.",
+    "  Studenti: 'Cognome Nome' separati da virgola. Anche qui il nome viene aggiunto da solo quando non ci sono omonimi.",
     "",
     "FOGLIO 'Parametri' – poche regole generali (max rientri, tempo di calcolo). Di norma non serve toccarlo.",
     "",
@@ -175,30 +183,38 @@ def costruisci_workbook(studenti: Iterable[dict] = (), docenti: Iterable[dict] =
 
     # Docenti
     ws = wb.create_sheet(FOGLIO_DOCENTI)
-    larg = {1: 18, 2: 22, 3: 10, 4: 12, len(COLONNE_DOCENTI): 30}
-    for i in range(5, 5 + len(FASCE)):
+    cold = {nome: i for i, nome in enumerate(COLONNE_DOCENTI, start=1)}
+    prima_fascia = cold[FASCE[0]]
+    larg = {cold["Docente"]: 18, cold["Strumento/i"]: 22, cold["Ore accompagnamento"]: 12,
+            len(COLONNE_DOCENTI): 30}
+    for nome in COLONNE_AULE:
+        larg[cold[nome]] = 9
+    for i in range(prima_fascia, prima_fascia + len(FASCE)):
         larg[i] = 6.5
     _intesta(ws, COLONNE_DOCENTI, larg)
-    for i in range(5, 5 + len(FASCE)):
+    for i in range(prima_fascia, prima_fascia + len(FASCE)):
         ws.cell(row=1, column=i).alignment = Alignment(wrap_text=True, text_rotation=90,
                                                       horizontal="center", vertical="bottom")
     ws.row_dimensions[1].height = 60
     for d in docenti:
-        ws.append([d["nome"], d.get("strumenti", ""), d.get("aula", ""), d.get("ore_accomp", 0)]
-                  + [""] * len(FASCE) + [d.get("note", "")])
+        aule = d.get("aule") or [d.get("aula", "")] * len(COLONNE_AULE)
+        ws.append([d["nome"], d.get("strumenti", "")] + list(aule)[:len(COLONNE_AULE)]
+                  + [d.get("ore_accomp", 0)] + [""] * len(FASCE) + [d.get("note", "")])
         if d.get("note"):
             ws.cell(row=ws.max_row, column=1).fill = WARN_FILL
     if not docenti and esempi:
-        ws.append(["Bianchi", "PIANOFORTE", "M1", 2] + ["X"] * 8 + [""] * 12 + [ESEMPIO])
-        ws.append(["Verdi", "VIOLINO, CANTO", "M2", 0] + [""] * 4 + ["X"] * 12 + [""] * 4 + [ESEMPIO])
+        ws.append(["Bianchi", "PIANOFORTE"] + ["M1"] * 5 + [2] + ["X"] * 8 + [""] * 12 + [ESEMPIO])
+        ws.append(["Verdi", "VIOLINO, CANTO", "M2", "M2", "M3", "M3", "M2", 0]
+                  + [""] * 4 + ["X"] * 12 + [""] * 4 + [ESEMPIO])
         _grigia(ws, 2, len(COLONNE_DOCENTI))
         _grigia(ws, 3, len(COLONNE_DOCENTI))
     dv = DataValidation(type="list", formula1='"X,A"', allow_blank=True)
     ws.add_data_validation(dv)
-    dv.add(f"E2:{get_column_letter(4 + len(FASCE))}120")
+    dv.add(f"{get_column_letter(prima_fascia)}2:{get_column_letter(prima_fascia + len(FASCE) - 1)}120")
     dv = DataValidation(type="whole", operator="between", formula1="0", formula2="20")
     ws.add_data_validation(dv)
-    dv.add("D2:D120")
+    lettera_acc = get_column_letter(cold["Ore accompagnamento"])
+    dv.add(f"{lettera_acc}2:{lettera_acc}120")
 
     # Gruppi LMC
     ws = wb.create_sheet(FOGLIO_GRUPPI)

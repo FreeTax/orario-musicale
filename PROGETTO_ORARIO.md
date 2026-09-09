@@ -361,6 +361,25 @@ test_motore.py, test_export.py, test_e2e.py, test_gui.py   prove da terminale
 installer/installer.iss  script Inno Setup per l'installer Windows
 ```
 
+**Aule per giorno (9/9/2026, richiesta di Francesco)**: nel foglio Docenti l'aula non è più una sola per
+tutta la settimana ma cinque, una per giorno (Aula Lun … Aula Ven). L'orario del giorno, i PDF e l'anteprima
+mostrano l'aula di quel giorno; nel foglio riepilogativo per docente compare "varia" se cambia, con l'aula
+scritta accanto a ogni giornata. I file creati prima, con la colonna "Aula" unica, vengono aggiornati
+all'apertura copiando quell'aula su tutti e cinque i giorni.
+
+**Pulsante «Compila dagli studenti» (9/9/2026)**: nel foglio Docenti (e nel menu Modifica). Raccoglie i nomi
+che compaiono in Docente 1 e Docente 2 del foglio Studenti e nei gruppi di musica da camera, aggiunge i
+docenti mancanti, completa la colonna degli strumenti e lascia intatte aule, disponibilità, ore di
+accompagnamento e note. Alla fine dice quanti ne ha aggiunti, a quanti ha completato gli strumenti e quali
+docenti non sono usati da nessuno studente, che di solito vuol dire un nome scritto in due modi diversi.
+
+**Nomi degli studenti nei gruppi e negli LMI (9/9/2026)**: nelle celle si scrive **Cognome Nome**, perché
+due ragazzi possono avere lo stesso cognome. Nel foglio Gruppi LMC ogni cella ha il menu a tendina con tutti
+i ragazzi (si può anche digitare); scrivendo solo il cognome, il nome viene aggiunto da solo quando non ci
+sono omonimi, e negli LMI questo vale per ogni nome dell'elenco separato da virgole. Con gli omonimi (nei
+dati veri: Gori Camilla di 3ª e Gori Yvaine di 5ª) la cella resta come scritta, così è chi compila a
+scegliere. La verifica dei nomi al momento del calcolo accetta entrambe le forme.
+
 **Griglie come in Excel (9/9/2026)**: copia, taglia, incolla, annulla e ripeti con le scorciatoie di
 sistema; incollando più righe di quelle presenti le righe si aggiungono (fino a 5000); Invio scende, Tab va
 a destra; una riga vuota è sempre pronta in fondo e scrivendoci dentro ne compare un'altra (le righe vuote

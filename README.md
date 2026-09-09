@@ -36,6 +36,13 @@ lezioni che le modifiche rendono necessario spostare.
 
 **Fasce**: 13:30, 14:30, 15:30, 16:30, da lunedì a venerdì.
 
+Nei gruppi di musica da camera e nei laboratori i ragazzi si scrivono come **Cognome Nome**, con il menu a
+tendina che li suggerisce e il nome aggiunto da solo quando il cognome è di uno solo.
+
+Nel foglio Docenti il pulsante **Compila dagli studenti** aggiunge da solo i docenti che compaiono negli
+elenchi degli studenti e nei gruppi, con i loro strumenti. Ogni docente ha **un'aula per giorno**, quindi può
+cambiare stanza durante la settimana.
+
 **Non derogabile**: lezioni solo dove il docente è disponibile; un docente e un ragazzo mai in due posti
 nella stessa ora; tutti i membri di un gruppo di musica da camera nella stessa ora; giorni vietati per
 ragazzo; ore consecutive e giorno unico dove richiesti; ore di pianista accompagnatore in coda alle lezioni

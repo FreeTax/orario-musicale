@@ -24,6 +24,7 @@ from openpyxl import load_workbook
 
 from orario import controlli, lettura, motore, template, trasporti
 from orario.costanti import (
+    COLONNE_AULE,
     FASCE, FOGLIO_DOCENTI, FOGLIO_GRUPPI, FOGLIO_LMI, FOGLIO_PARAMETRI, FOGLIO_STUDENTI,
     FOGLIO_TRASPORTI, GIORNI, MINUTI_SENZA_MEZZO, N_GIORNI, N_ORE, ORE, TIPO_ACCOMP, TIPO_LMC,
     TIPO_STRUM1, TIPO_STRUM2, fascia, giorno_ora,
@@ -61,8 +62,10 @@ def stud(cognome, classe=1, nome="MARIO", km=None, s1="PIANOFORTE", d1="Bianchi"
 
 def doc(nome, fasce=(), accomp=0, aula="M1", strumenti="PIANOFORTE", note="") -> dict:
     """`fasce`: iterabile di indici 0..19 (X) oppure dict indice -> 'X'/'A'."""
-    d = {"Docente": nome, "Strumento/i": strumenti, "Aula": aula,
+    d = {"Docente": nome, "Strumento/i": strumenti,
          "Ore accompagnamento": accomp, "Note": note}
+    for nome_colonna in COLONNE_AULE:      # una aula per giorno
+        d[nome_colonna] = aula
     mappa = fasce if isinstance(fasce, dict) else {f: "X" for f in fasce}
     for f, v in mappa.items():
         d[FASCE[f]] = v

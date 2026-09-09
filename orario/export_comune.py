@@ -88,12 +88,11 @@ def titolo_orario(dati: DatiInput) -> str:
     return "LICEO MUSICALE: ORARIO POMERIDIANO" + (f" {anno}" if anno else "")
 
 
-def descrizione_docente(dati: DatiInput, nome: str) -> str:
-    """'Bini (aula 5ALM)' oppure 'Bini' se l'aula manca."""
+def descrizione_docente(dati: DatiInput, nome: str, giorno: int | None = None) -> str:
+    """'Bini (aula 5ALM)' oppure 'Bini' se l'aula di quel giorno manca."""
     d = dati.docente(nome)
-    if d and d.aula:
-        return f"{nome} (aula {d.aula})"
-    return nome
+    aula = d.aula(giorno) if d else ""
+    return f"{nome} (aula {aula})" if aula else nome
 
 
 # ── Contenuto delle celle ────────────────────────────────────────────────────
@@ -166,7 +165,8 @@ def lezione_per_studente(orario: Orario, lez: Lezione, id_: str, doppi: set[str]
     """Cella della griglia personale dello studente: '1° strumento – Bini (aula M1)' ecc."""
     dati = orario.dati
     b, i = lez.tipo == TIPO_STRUM1, lez.tipo == TIPO_STRUM2
-    righe = [Riga(tipo_lezione_lungo(lez), b, i), Riga(descrizione_docente(dati, lez.docente), b, i)]
+    righe = [Riga(tipo_lezione_lungo(lez), b, i),
+             Riga(descrizione_docente(dati, lez.docente, lez.giorno), b, i)]
     if lez.tipo == TIPO_LMC:
         altri = [etichetta_id(dati, x, doppi) for x in lez.studenti if x != id_]
         if altri:

@@ -79,11 +79,22 @@ class Studente:
 class Docente:
     nome: str
     strumenti: str = ""
-    aula: str = ""
+    aule: list[str] = field(default_factory=lambda: ["", "", "", "", ""])  # una per giorno, lun→ven
     ore_accomp: int = 0
     disponibilita: dict[int, str] = field(default_factory=dict)  # fascia → "X" oppure "A"
     note: str = ""
     riga: int = 0
+
+    def aula(self, giorno: int | None = None) -> str:
+        """L'aula di quel giorno. Senza giorno: l'unica aula, se è sempre la stessa, altrimenti "".."""
+        if giorno is not None:
+            return self.aule[giorno] if giorno < len(self.aule) else ""
+        distinte = {a for a in self.aule if a}
+        return distinte.pop() if len(distinte) == 1 else ""
+
+    @property
+    def aula_unica(self) -> bool:
+        return len({a for a in self.aule if a}) <= 1
 
     def disponibile(self, f: int) -> bool:
         return f in self.disponibilita
