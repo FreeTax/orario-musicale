@@ -266,9 +266,10 @@ def _ora_locale(ts: str) -> datetime:
 def ritorni(da: Coordinate, a: Coordinate, giorno: date) -> tuple[list[int | None], list[str], list[str]]:
     """Per ciascuna delle 4 fasce: (minuti da fine lezione ad arrivo a casa, ora di arrivo, mezzi).
 
-    Una sola richiesta a Transitous (tutte le partenze del pomeriggio), una seconda solo se la prima
-    non copre l'ultima fascia. Transitous limita il ritmo a circa una richiesta ogni 3 secondi per
-    utente: meno richieste = aggiornamento più veloce.
+    Una richiesta a Transitous chiede tutte le partenze del pomeriggio in una volta; ne serve una
+    seconda solo quando le corse trovate non arrivano fino all'ultima fascia (con gli orari reali
+    capita spesso). Transitous limita il ritmo a circa una richiesta ogni 3 secondi per utente,
+    quindi accorpare le partenze è ciò che rende veloce l'aggiornamento.
     """
     partenze = []
     for ora in ORE_PARTENZA:

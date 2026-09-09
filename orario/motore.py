@@ -434,6 +434,15 @@ def calcola(dati: DatiInput, progresso: Callable[[str], None] | None = None,
     inizio = time.monotonic()
     timeout = dati.parametri.timeout_s
 
+    # i cognomi scritti nei gruppi di musica da camera vengono tradotti in studenti da controlli.controlla:
+    # senza quel passaggio i gruppi risulterebbero vuoti e l'orario sarebbe sbagliato in silenzio
+    non_risolti = [g for g in dati.gruppi if g.studenti_raw and not g.studenti]
+    if non_risolti:
+        raise ProblemiError([Problema(
+            "errore", "Programma",
+            f"I gruppi di musica da camera non sono stati controllati ({len(non_risolti)} gruppi senza studenti "
+            "riconosciuti): va eseguito 'controlli.controlla(dati)' prima del calcolo.")])
+
     progresso("Costruzione del modello…")
     unita = _crea_unita(dati)
 

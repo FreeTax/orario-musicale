@@ -86,8 +86,6 @@ def controlla(dati: DatiInput) -> list[Problema]:
             avv(dove, "Ore consecutive = SI ma la classe ha una sola ora di 1° strumento: ignorato.")
         if len(s.giorni_non_disp) >= 5:
             err(dove, "Lo studente non è disponibile in nessun giorno.")
-        if s.giorno_unico and s.ore_consecutive is False and h1 + h2 + s.ore[2] > N_ORE:
-            err(dove, "Giorno unico = SI ma le ore settimanali superano le 4 fasce di un pomeriggio.")
 
     # ── Gruppi LMC ──
     membri: dict[str, list[int]] = defaultdict(list)

@@ -301,9 +301,10 @@ non l'indirizzo esatto dei minori: la precisione a livello di paese basta.
   minuti da fine lezione ad arrivo a casa, ora di arrivo e mezzi, per ogni fascia. Si può interrompere e i
   risultati parziali restano; le coordinate già note si riusano.
   Misure sugli 80 studenti di prova con indirizzo: prima versione (solo Nominatim, 4 richieste a Transitous
-  per studente) 1055 s e 73 trovati; versione finale (Photon, **una sola richiesta a Transitous per
-  studente** con tutte le partenze del pomeriggio, 30 min a piedi dalla fermata, centro del comune come
-  ultimo ripiego) **249 s e 80 trovati su 80**. Transitous limita il ritmo a circa una richiesta ogni 3
+  per studente) 1055 s e 73 trovati; versione finale (Photon, e a Transitous si chiedono **tutte le
+  partenze del pomeriggio in una richiesta** invece di una per fascia — una seconda serve solo se le corse
+  trovate non arrivano all'ultima fascia; 30 min a piedi dalla fermata, centro del comune come ultimo
+  ripiego) **249 s e 80 trovati su 80**, cioè circa 3 s per studente. Transitous limita il ritmo a circa una richiesta ogni 3
   secondi per utente: il tempo dipende dal numero di studenti, non dalla velocità del computer.
   **Riuso**: coordinate e percorsi restano nel foglio Trasporti; al prossimo aggiornamento il programma chiede
   se rifare tutti (orari dei mezzi cambiati) o solo i nuovi/modificati (secondi). Provato: 1 studente nuovo
@@ -360,6 +361,27 @@ dati_esempio.py         dataset inventato → esempio/orario_2026-27.xlsx (30 st
 test_motore.py, test_export.py, test_e2e.py, test_gui.py   prove da terminale
 installer/installer.iss  script Inno Setup per l'installer Windows
 ```
+
+**Test automatici (9/9/2026)** — 96 test, tutti verdi:
+- `test_e2e.py` (74): template e lettura/scrittura del file, tutti i messaggi dei controlli, invarianti del
+  motore riverificate in modo indipendente (ore per classe, sovrapposizioni, A e accompagnamento in coda,
+  gruppi in coincidenza, giorno unico, ore consecutive, rientri), casi impossibili, ricalcolo, export
+  Excel e PDF (con `pdftotext`/`pdfinfo`), trasporti con le risposte del servizio simulate.
+- `test_gui.py` (22): apertura, nuovo file, griglie, menu, calcolo con scelta della cartella, finestra dei
+  problemi, pulsante Trasporti e flusso concatenato trasporti → orario, robustezza.
+- `test_motore.py`, `test_export.py`: prove storiche sul dataset grande (109 studenti).
+
+**Bug trovati dai test e corretti (9/9/2026)**
+- "Chiudi file" e "Cambia file" non chiudevano davvero il file: lo stato restava in memoria e le voci
+  Salva/Calcola/Trasporti continuavano a lavorare su griglie non più visibili (Calcola arrivava a
+  esportare). Ora la schermata dati viene distrutta e lo stato azzerato.
+- `_aggiorna_info_trasporti` poteva configurare un pulsante già distrutto (è schedulata con `after`).
+- `nuovo_file` poteva far crollare il programma se il file appena creato non era leggibile.
+- La cartella dei risultati aveva la data al minuto: due calcoli nello stesso minuto si sovrascrivevano.
+  Ora il nome include i secondi.
+- `motore.calcola` chiamato senza `controlli.controlla` produceva gruppi di musica da camera vuoti e un
+  errore interno fuorviante: ora si ferma con un messaggio esplicito.
+- Tolto un controllo che non poteva mai scattare (giorno unico con più di 4 ore settimanali).
 
 **Note tecniche emerse dalle prove (8/9/2026)**
 - Sui dati di prova (109 studenti, 23 docenti, 284 lezioni) il motore trova in 5 s una soluzione buona e in

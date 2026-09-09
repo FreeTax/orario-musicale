@@ -444,7 +444,8 @@ class TestControlli(Caso):
         s, motivo = r("Rossi", S)                                # omonimi
         self.assertIsNone(s)
         self.assertIn("scrivere anche il nome", motivo)
-        self.assertIn("Rossi Mario", motivo)
+        self.assertIn("ROSSI MARIO", motivo)
+        self.assertIn("(1ª)", motivo)
         self.assertIsNone(r("Manzi", S)[0])
         self.assertIn("non trovato", r("Manzi", S)[1])
         self.assertIn("vuoto", r("   ", S)[1])
@@ -600,12 +601,35 @@ class TestMotore(Caso):
                              doc("Camera", tutte(giorni=[2, 3]))],
                     gruppi=[gruppo(1, "Camera", "Rossi", "Neri")],
                     timeout=15)
+        # qui interessa la diagnosi del motore: i controlli fermerebbero prima questo caso,
+        # quindi risolvo i gruppi a mano come farebbe controlla()
+        d.gruppi[0].studenti = ["ROSSI MARIO", "NERI ANNA"]
         with self.assertRaises(ProblemiError) as cm:
             motore.calcola(d)
         t = "\n".join(str(p) for p in cm.exception.problemi)
         self.assertIn("Stretto", t)
         self.assertTrue("Rossi Mario" in t or "Neri Anna" in t, t)
         self.assertIn("impossibile collocare", t.lower())
+
+    def test_gruppi_non_risolti_senza_controlla(self):
+        """Senza controlli.controlla() i gruppi LMC non sono risolti: il motore lo dice chiaramente.
+
+        I cognomi scritti nei gruppi vengono tradotti in studenti da controlla(), che ha questo
+        effetto collaterale. Il motore si rifiuta di calcolare invece di produrre gruppi vuoti.
+        """
+        d = dati_di(studenti=[stud("ROSSI", classe=3), stud("NERI", classe=3, nome="ANNA")],
+                    docenti=[doc("Bianchi", tutte()), doc("Verdi", tutte()), doc("Camera", tutte())],
+                    gruppi=[gruppo(1, "Camera", "Rossi", "Neri")], timeout=10)
+        self.assertEqual(d.gruppi[0].studenti, [])          # ancora da risolvere
+        self.assertEqual(d.gruppi[0].studenti_raw, ["Rossi", "Neri"])
+        with self.assertRaises(ProblemiError) as cm:
+            motore.calcola(d)
+        t = "\n".join(str(p) for p in cm.exception.problemi)
+        self.assertIn("non sono stati controllati", t)
+        self.assertIn("controlla", t)
+        controlli.controlla(d)
+        self.assertEqual(len(d.gruppi[0].studenti), 2)
+        controlla_invarianti(self, motore.calcola(d))
 
     def test_rientri_entro_il_massimo(self):
         d = dati_di(studenti=[stud("ROSSI", km=40)],
@@ -627,6 +651,7 @@ class TestMotore(Caso):
                                                      indirizzo_usato="", esito="OK")
         d.studente("LONTANO L").trasporto = Trasporto([120] * 4, ["17:00"] * 4, ["bus"] * 4,
                                                       indirizzo_usato="", esito="OK")
+        controlli.controlla(d)
         o = motore.calcola(d)
         s1 = {l.studenti[0]: l for l in o.lezioni if l.tipo == TIPO_STRUM1}
         self.assertLessEqual(s1["LONTANO L"].ora, s1["VICINO V"].ora)
@@ -644,12 +669,15 @@ class TestMotoreEsempio(Caso):
     def carica(self, timeout=20) -> DatiInput:
         d = lettura.leggi_dati(ESEMPIO)
         d.parametri.timeout_s = timeout
+        controlli.controlla(d)  # risolve i cognomi dei gruppi LMC: il motore ne ha bisogno
         return d
 
     def test_esempio_completo(self):
-        d = self.carica()
+        d = lettura.leggi_dati(ESEMPIO)
+        d.parametri.timeout_s = 20
         avvisi = controlli.controlla(d)
         self.assertTrue(all(a.livello == "avviso" for a in avvisi))
+        self.assertTrue(all(g.studenti for g in d.gruppi))
         o = motore.calcola(d)
         controlla_invarianti(self, o)
         self.assertGreater(len(o.lezioni), 50)
@@ -713,6 +741,7 @@ class TestMotoreEsempio(Caso):
         shutil.copy(ESEMPIO, copia)
         d = lettura.leggi_dati(copia)
         d.parametri.timeout_s = 10
+        controlli.controlla(d)
         o = motore.calcola(d)
         lettura.salva_orario_nel_file(copia, o)
         letto = lettura.leggi_orario_precedente(copia)
@@ -1083,7 +1112,7 @@ class TestAggiornaTrasporti(Caso):
             q = urllib.parse.parse_qs(urllib.parse.urlparse(url).query)
             quando = datetime.fromisoformat(q["time"][0].replace("Z", "+00:00")).astimezone(trasporti.FUSO)
             g = quando.date()
-            return {"itineraries": [_itin(g, h, 40, 30) for h in (14, 15, 16, 17)], "direct": []}
+            return {"itineraries": [_itin(g, h, 40, 30) for h in (14, 15, 16, 17, 18)], "direct": []}
         raise AssertionError(f"URL inatteso: {url}")
 
     def _dati(self, n=3):

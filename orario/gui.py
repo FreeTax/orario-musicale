@@ -68,7 +68,8 @@ def apri_cartella(p: Path) -> None:
 
 
 def nome_cartella_risultati() -> str:
-    return f"Risultati orario {datetime.now():%Y-%m-%d %H.%M}"
+    # con i secondi: due calcoli ravvicinati non si sovrascrivono a vicenda
+    return f"Risultati orario {datetime.now():%Y-%m-%d %H.%M.%S}"
 
 
 # ── Finestra principale ──────────────────────────────────────────────────────
@@ -202,7 +203,8 @@ class App(ctk.CTk):
             self.mostra_problemi([Problema("errore", percorso.name, f"Impossibile creare il file: {e}")], "Nuovo file")
             return
         self.apri_file(percorso)
-        self.lbl_stato.configure(text="Nuovo file creato: le righe grigie sono esempi da cancellare o sostituire.")
+        if self.schermata_dati is not None:
+            self.lbl_stato.configure(text="Nuovo file creato: le righe grigie sono esempi da cancellare o sostituire.")
 
     def salva_con_nome(self) -> None:
         if not self._con_file():
@@ -334,7 +336,8 @@ class App(ctk.CTk):
         return n, len(con_indirizzo)
 
     def _aggiorna_info_trasporti(self) -> None:
-        if not hasattr(self, "btn_trasporti"):
+        # può arrivare in ritardo (after) quando la schermata dati è già stata chiusa
+        if not hasattr(self, "btn_trasporti") or not self.btn_trasporti.winfo_exists() or self.percorso is None:
             return
         pronti, totali = self._stato_trasporti()
         if totali == 0:
@@ -407,8 +410,15 @@ class App(ctk.CTk):
         sheet.del_rows(righe, redraw=True)
 
     def torna_apertura(self) -> None:
+        # chiudere il file significa dimenticarlo: altrimenti Salva/Calcola dal menu
+        # lavorerebbero su griglie non più visibili
         if self.schermata_dati is not None:
-            self.schermata_dati.pack_forget()
+            self.schermata_dati.destroy()
+            self.schermata_dati = None
+        self.percorso = None
+        self.tabelle = {}
+        self.fogli = {}
+        self.orario = None
         self.schermata_apertura.destroy()
         self.schermata_apertura = self._crea_apertura()
         self.schermata_apertura.pack(fill="both", expand=True)

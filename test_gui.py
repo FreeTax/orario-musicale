@@ -156,6 +156,10 @@ class BaseGui(unittest.TestCase):
         for r in ws.iter_rows(min_row=2):
             if r[0].value and "tempo" in str(r[0].value).lower():
                 r[1].value = TIMEOUT_SOLVER
+        # punto di partenza pulito, qualunque cosa contenga il file di esempio
+        for extra in (FOGLIO_TRASPORTI, FOGLIO_ORARIO):
+            if extra in wb.sheetnames:
+                del wb[extra]
         wb.save(dest)
         return dest
 
@@ -442,6 +446,7 @@ class TestGriglie(BaseGui):
 
             # elimina senza selezione → messaggio nella barra di stato
             app.lbl_stato.configure(text="")
+            sh.deselect("all")
             app.elimina_righe("Studenti")
             self.assertIn("Seleziona prima", app.lbl_stato.cget("text"))
             self.assertEqual(len(sh.get_sheet_data()), n + 1)
@@ -460,6 +465,7 @@ class TestGriglie(BaseGui):
             app.aggiungi_riga_corrente()
             self.assertEqual(len(app.fogli["Gruppi LMC"].get_sheet_data()), g + 1)
             app.lbl_stato.configure(text="")
+            app.fogli["Gruppi LMC"].deselect("all")
             app.elimina_righe_corrente()
             self.assertIn("Seleziona prima", app.lbl_stato.cget("text"))
             yield
@@ -634,6 +640,8 @@ class TestCalcolo(BaseGui):
             self.assertIn("Nessun orario precedente", app.chk_precedente.cget("text"))
             self.assertEqual(str(app.btn_cartella.cget("state")), "disabled")
 
+            # il file di prova non ha i tempi dei mezzi: rispondo "No, calcola con i KM"
+            self.finte.risposte["askyesnocancel"] = False
             # annullando la scelta della cartella non parte nulla
             self.finte.risposte["askdirectory"] = ""
             app.calcola()
@@ -713,6 +721,7 @@ class TestCalcolo(BaseGui):
             sh = app.fogli["Studenti"]
             cognome = sh.get_cell_data(0, self.col(sh, "Cognome"))
             sh.set_cell_data(0, self.col(sh, "Docente 1"), "")
+            self.finte.risposte["askyesnocancel"] = False  # niente trasporti, calcola con i KM
             self.finte.risposte["askdirectory"] = str(dest)
             app.calcola()
             yield
@@ -843,9 +852,13 @@ class TestTrasporti(BaseGui):
             yield (lambda: app.orario is not None, 90)
             self.assertIn(FOGLIO_TRASPORTI, openpyxl.load_workbook(f).sheetnames,
                           "i trasporti dovevano essere calcolati e salvati")
+            # (la cartella dei risultati ha la data al minuto: due calcoli nello stesso minuto
+            #  finiscono nella stessa cartella, quindi conto i file, non le cartelle)
             cartelle = sorted((p for p in dest.iterdir() if p.is_dir()), key=lambda p: p.stat().st_mtime)
-            self.assertEqual(len(cartelle), 2, "atteso un secondo giro di risultati")
-            self.assertEqual(len(list(cartelle[-1].iterdir())), 4)
+            self.assertGreaterEqual(len(cartelle), 1)
+            self.assertEqual(sorted(p.name for p in cartelle[-1].iterdir()),
+                             ["orario.xlsx", "orario_docenti.pdf", "orario_settimanale.pdf",
+                              "orario_studenti.pdf"])
             self.assertFalse(app._calcola_dopo_trasporti)
             self.assertEqual(str(app.btn_calcola.cget("state")), "normal")
             self.chiudi_toplevel(app, gui.FinestraFatto)
