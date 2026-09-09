@@ -143,6 +143,24 @@ def _numero_o_testo(v: str):
     return s
 
 
+# ── Righe di esempio del modello ─────────────────────────────────────────────
+
+# I nomi inventati che il modello mette nelle righe grigie di esempio.
+_ESEMPIO_STUDENTI = {("ROSSI", "MARIO"), ("NERI", "ANNA")}
+_ESEMPIO_DOCENTI = {"BIANCHI", "VERDI"}
+_ESEMPIO_GRUPPI = {"NERI", "ROSSI"}
+
+
+def _nota_di_esempio(nota: str) -> bool:
+    return "ESEMPIO" in (nota or "").upper()
+
+
+def _residuo_esempio(dove: str, riga: int) -> Problema:
+    return Problema("avviso", f"{dove}, riga {riga}",
+                    "Nella colonna Note è rimasta la scritta «ESEMPIO»: la riga contiene dati veri, "
+                    "quindi è stata usata lo stesso. Puoi cancellare quella nota.")
+
+
 # ── Costruzione DatiInput ────────────────────────────────────────────────────
 
 _SI = {"SI", "SÌ", "S", "YES", "X", "1", "TRUE", "VERO"}
@@ -204,10 +222,12 @@ def costruisci_dati(tabelle: dict[str, Tabella], percorso: Path | None = None) -
     for i, r in enumerate(ts.righe, start=2):
         v = lambda p: ts.valore(r, p)  # noqa: E731
         cognome, nome = v("Cognome"), v("Nome")
-        if "ESEMPIO" in v("Note").upper():
-            problemi.append(Problema("errore", f"{FOGLIO_STUDENTI}, riga {i}",
-                                     "Riga di esempio ancora presente: cancellarla o sostituirla con uno studente vero."))
-            continue
+        if _nota_di_esempio(v("Note")):
+            if (cognome.upper(), nome.upper()) in _ESEMPIO_STUDENTI:
+                problemi.append(Problema("errore", f"{FOGLIO_STUDENTI}, riga {i}",
+                                         "Riga di esempio ancora presente: cancellarla o sostituirla con uno studente vero."))
+                continue
+            problemi.append(_residuo_esempio(FOGLIO_STUDENTI, i))
         if not cognome:
             problemi.append(Problema("errore", f"{FOGLIO_STUDENTI}, riga {i}", "Cognome mancante."))
             continue
@@ -253,10 +273,12 @@ def costruisci_dati(tabelle: dict[str, Tabella], percorso: Path | None = None) -
         nome = v("Docente")
         if not nome:
             continue
-        if "ESEMPIO" in v("Note").upper():
-            problemi.append(Problema("errore", f"{FOGLIO_DOCENTI}, riga {i}",
-                                     "Riga di esempio ancora presente: cancellarla o sostituirla con un docente vero."))
-            continue
+        if _nota_di_esempio(v("Note")):
+            if nome.upper() in _ESEMPIO_DOCENTI:
+                problemi.append(Problema("errore", f"{FOGLIO_DOCENTI}, riga {i}",
+                                         "Riga di esempio ancora presente: cancellarla o sostituirla con un docente vero."))
+                continue
+            problemi.append(_residuo_esempio(FOGLIO_DOCENTI, i))
         disp: dict[int, str] = {}
         for f, col in enumerate(idx_fasce):
             if col is None or col >= len(r):
@@ -289,10 +311,12 @@ def costruisci_dati(tabelle: dict[str, Tabella], percorso: Path | None = None) -
         docente = v("Docente")
         if not membri and not docente:
             continue
-        if "ESEMPIO" in v("Note").upper():
-            problemi.append(Problema("errore", f"{FOGLIO_GRUPPI}, riga {i}",
-                                     "Riga di esempio ancora presente: cancellarla o sostituirla con un gruppo vero."))
-            continue
+        if _nota_di_esempio(v("Note")):
+            if {m.split()[0].upper() for m in membri} <= _ESEMPIO_GRUPPI:
+                problemi.append(Problema("errore", f"{FOGLIO_GRUPPI}, riga {i}",
+                                         "Riga di esempio ancora presente: cancellarla o sostituirla con un gruppo vero."))
+                continue
+            problemi.append(_residuo_esempio(FOGLIO_GRUPPI, i))
         numero = _int(v("Gruppo"), i - 1)
         gruppi.append(GruppoLMC(numero=numero, docente=docente, studenti=[], studenti_raw=membri,
                                 note=v("Note"), riga=i))
@@ -302,9 +326,9 @@ def costruisci_dati(tabelle: dict[str, Tabella], percorso: Path | None = None) -
     lmi: list[LaboratorioLMI] = []
     for r in tl.righe:
         v = lambda p: tl.valore(r, p)  # noqa: E731
-        if "ESEMPIO" in v("Note").upper():
-            continue
         if not any(r):
+            continue
+        if _nota_di_esempio(v("Note")) and v("Laboratorio").strip().upper() == "LMI ARCHI":
             continue
         lmi.append(LaboratorioLMI(nome=v("Laboratorio"), classi=v("Classi"), docente=v("Docente"),
                                   aula=v("Aula"), giorno_ora=v("Giorno"), studenti=v("Studenti"), note=v("Note")))
@@ -330,9 +354,10 @@ def costruisci_dati(tabelle: dict[str, Tabella], percorso: Path | None = None) -
         elif "tempo" in chiave or "second" in chiave:
             par.timeout_s = _int(val, par.timeout_s)
 
-    if problemi:
+    if any(p.livello == "errore" for p in problemi):
         raise ProblemiError(problemi)
-    return DatiInput(studenti=studenti, docenti=docenti, gruppi=gruppi, lmi=lmi, parametri=par, percorso=percorso)
+    return DatiInput(studenti=studenti, docenti=docenti, gruppi=gruppi, lmi=lmi, parametri=par,
+                     percorso=percorso, avvisi=problemi)
 
 
 def leggi_dati(percorso: Path) -> DatiInput:

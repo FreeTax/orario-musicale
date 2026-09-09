@@ -55,7 +55,7 @@ def risolvi_studente(testo: str, studenti: list[Studente]) -> tuple[Studente | N
 
 def controlla(dati: DatiInput) -> list[Problema]:
     """Esegue tutti i controlli. Solleva ProblemiError se ci sono errori; ritorna gli avvisi."""
-    problemi: list[Problema] = []
+    problemi: list[Problema] = list(dati.avvisi)   # segnalazioni già emerse leggendo il file
     err = lambda dove, msg: problemi.append(Problema("errore", dove, msg))  # noqa: E731
     avv = lambda dove, msg: problemi.append(Problema("avviso", dove, msg))  # noqa: E731
 

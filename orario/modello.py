@@ -147,6 +147,7 @@ class DatiInput:
     lmi: list[LaboratorioLMI]
     parametri: Parametri
     percorso: Path | None = None
+    avvisi: list["Problema"] = field(default_factory=list)  # segnalazioni non bloccanti della lettura
 
     def docente(self, nome: str) -> Docente | None:
         for d in self.docenti:

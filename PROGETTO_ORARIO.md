@@ -380,6 +380,13 @@ sono omonimi, e negli LMI questo vale per ogni nome dell'elenco separato da virg
 dati veri: Gori Camilla di 3ª e Gori Yvaine di 5ª) la cella resta come scritta, così è chi compila a
 scegliere. La verifica dei nomi al momento del calcolo accetta entrambe le forme.
 
+**Righe di esempio (9/9/2026)**: il controllo bloccava il calcolo appena trovava la parola «ESEMPIO» nella
+colonna Note, anche quando la riga era stata riempita con dati veri e restava solo la nota. Ora la riga è
+considerata di esempio soltanto se contiene ancora i nomi inventati del modello (Rossi Mario, Neri Anna,
+Bianchi, Verdi); altrimenti si ottiene un avviso che suggerisce di cancellare la nota. Nello stesso giro:
+la lettura del file non si interrompe più quando trova solo avvisi, che ora viaggiano dentro `DatiInput` e
+compaiono insieme a quelli dei controlli.
+
 **Difetto grave corretto (9/9/2026)**: applicando il menu a tendina dei nomi, la libreria delle griglie
 scriveva il primo valore dell'elenco in **tutte** le celle degli studenti dei gruppi (`edit_data=True` è il
 suo comportamento predefinito). Ora il menu si applica con `edit_data=False` e come opzione di colonna, non
