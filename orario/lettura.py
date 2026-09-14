@@ -294,6 +294,7 @@ def costruisci_dati(tabelle: dict[str, Tabella], percorso: Path | None = None) -
             giorno_unico=_bool(v("Giorno unico")),
             giorni_non_disp=giorni, note=v("Note"), riga=i,
             comune=v("Comune"), indirizzo=v("Indirizzo"), civico=v("Civico"),
+            minuti_manuali=_float(v("Minuti per tornare a casa")),
         ))
 
     # Docenti
@@ -598,10 +599,10 @@ COLONNA_MINUTI = "Minuti per tornare a casa"
 
 
 def aggiorna_minuti_studenti(tabelle: dict[str, Tabella], trasporti: dict[str, Trasporto]) -> int:
-    """Scrive nel foglio Studenti i minuti per tornare a casa (il migliore delle 4 fasce).
+    """Riempie le caselle vuote della colonna «Minuti per tornare a casa» (il migliore delle 4 fasce).
 
-    È un numero di comodo per chi guarda il foglio: il programma usa il dettaglio del foglio Trasporti.
-    Ritorna quante caselle ha riempito.
+    Le caselle già scritte non si toccano: il numero messo a mano vince su quello calcolato, e per
+    rifarlo calcolare basta svuotare la casella. Ritorna quante caselle ha riempito.
     """
     ts = tabelle.get(FOGLIO_STUDENTI)
     if ts is None or not ts.intestazione:
@@ -618,10 +619,13 @@ def aggiorna_minuti_studenti(tabelle: dict[str, Tabella], trasporti: dict[str, T
         cognome = (r[i_cog] or "").strip().upper()
         if not cognome:
             continue
+        if (r[i_min] or "").strip():
+            continue          # scritto a mano: non si tocca, ed è quello che vale per il calcolo
         t = trasporti.get(f"{cognome} {(r[i_nome] or '').strip().upper()}".strip())
         minuti = t.minuti_min if t is not None else None
-        r[i_min] = "" if minuti is None else str(minuti)
-        n += minuti is not None
+        if minuti is not None:
+            r[i_min] = str(minuti)
+            n += 1
     return n
 
 

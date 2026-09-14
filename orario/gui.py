@@ -390,10 +390,27 @@ class App(ctk.CTk):
                                          hover_color="#2f5a86")
 
     def _cambio_scheda(self) -> None:
-        """Aprendo la scheda dei gruppi si aggiorna l'elenco dei nomi suggeriti."""
+        """Cambio di scheda: nomi suggeriti aggiornati e tastiera pronta sulla griglia."""
         try:
             if self.tabs.get() in (FOGLIO_GRUPPI, FOGLIO_ABBINAMENTI, FOGLIO_LMI):
                 self._aggiorna_suggerimenti()
+        except Exception:
+            pass
+        self._dai_fuoco(self.tabs.get())
+
+    def _dai_fuoco(self, nome: str) -> None:
+        """Mette la tastiera sulla griglia, con una cella selezionata.
+
+        Senza questo, dopo aver premuto un pulsante della barra (per esempio «Copia i nomi dagli
+        studenti») i tasti vanno al pulsante e la griglia sembra bloccata.
+        """
+        sheet = self.fogli.get(nome)
+        if sheet is None or not sheet.winfo_exists():
+            return
+        try:
+            sheet.MT.focus_set()
+            if sheet.get_currently_selected() is None and sheet.get_sheet_data():
+                sheet.select_cell(0, 0, redraw=True)
         except Exception:
             pass
 
@@ -742,6 +759,7 @@ class App(ctk.CTk):
         sheet.set_sheet_data([list(r) for r in tabelle[FOGLIO_DOCENTI].righe], redraw=True)
         self._adatta_colonne(sheet, FOGLIO_DOCENTI)
         self._riga_libera_in_fondo(FOGLIO_DOCENTI)
+        self.after_idle(lambda: self._dai_fuoco(FOGLIO_DOCENTI))
         self.modificato = True
         td = tabelle[FOGLIO_DOCENTI]
         totale = td.righe[-1][td.colonna("Ore dichiarate")] if td.righe else "0"
@@ -853,6 +871,7 @@ class App(ctk.CTk):
         self._adatta_colonne(self.fogli[FOGLIO_IMPEGNI], FOGLIO_IMPEGNI)
         self._riga_libera_in_fondo(FOGLIO_IMPEGNI)
         self.tabs.set(FOGLIO_IMPEGNI)
+        self.after_idle(lambda: self._dai_fuoco(FOGLIO_IMPEGNI))
         self.modificato = True
         parti = [f"Ragazzi aggiunti all'elenco: {len(aggiunti)}." if aggiunti
                  else "L'elenco era già completo: nessun ragazzo da aggiungere."]

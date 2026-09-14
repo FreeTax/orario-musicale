@@ -52,10 +52,13 @@ class Studente:
     indirizzo: str = ""
     civico: str = ""
     trasporto: Trasporto | None = None  # riempito da "Aggiorna trasporti" (foglio Trasporti)
+    minuti_manuali: float | None = None  # colonna «Minuti per tornare a casa» scritta a mano: vince su tutto
 
     @property
     def minuti_ritorno(self) -> float:
         """Quanto ci mette a tornare a casa, in minuti: dai mezzi se ci sono, altrimenti stimati dai km."""
+        if self.minuti_manuali is not None:
+            return float(self.minuti_manuali)
         if self.trasporto is not None and self.trasporto.minuti_min is not None:
             return float(self.trasporto.minuti_min)
         if self.km is not None:
