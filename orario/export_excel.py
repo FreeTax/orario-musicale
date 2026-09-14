@@ -226,7 +226,8 @@ def esporta_excel(orario: Orario, percorso: Path) -> Path:
 
 
 def esporta_tutto(orario: Orario, cartella: Path) -> list[Path]:
-    """Produce Excel + i tre PDF nella cartella indicata (creata se manca)."""
+    """Produce Excel, i tre PDF e i tre Word nella cartella indicata (creata se manca)."""
+    from .export_docx import esporta_docx_docenti, esporta_docx_settimanale, esporta_docx_studenti
     from .export_pdf import esporta_pdf_docenti, esporta_pdf_settimanale, esporta_pdf_studenti
 
     cartella = Path(cartella)
@@ -236,6 +237,9 @@ def esporta_tutto(orario: Orario, cartella: Path) -> list[Path]:
         esporta_pdf_settimanale(orario, cartella / "orario_settimanale.pdf"),
         esporta_pdf_docenti(orario, cartella / "orario_docenti.pdf"),
         esporta_pdf_studenti(orario, cartella / "orario_studenti.pdf"),
+        esporta_docx_settimanale(orario, cartella / "orario_settimanale.docx"),
+        esporta_docx_docenti(orario, cartella / "orario_docenti.docx"),
+        esporta_docx_studenti(orario, cartella / "orario_studenti.docx"),
     ]
 
 

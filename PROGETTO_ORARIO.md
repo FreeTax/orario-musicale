@@ -155,6 +155,7 @@ Salvati nella cartella scelta al momento del calcolo, dentro una sottocartella "
 | `orario_settimanale.pdf` | La griglia per giorno, A4 orizzontale, una pagina per giorno, pronta da stampare e affiggere (come il PDF 2025-26). In coda una pagina con i **LMI del mattino** (docente, aula, giorno e ora, ragazzi), come il riquadro in fondo al martedì del PDF vecchio. |
 | `orario_docenti.pdf` | Una pagina per docente con la sua settimana. |
 | `orario_studenti.pdf` | Una pagina (o mezza) per ragazzo, da consegnare alle famiglie. |
+| `orario_settimanale.docx`, `orario_docenti.docx`, `orario_studenti.docx` | Gli stessi tre documenti in Word, con la stessa impaginazione, per ritoccarli a mano prima di stamparli o inviarli (richiesta del 14/9/2026). |
 
 Dopo il calcolo il programma mostra a video l'anteprima della griglia settimanale e apre la cartella dei file.
 
@@ -385,6 +386,17 @@ i ragazzi (si può anche digitare); scrivendo solo il cognome, il nome viene agg
 sono omonimi, e negli LMI questo vale per ogni nome dell'elenco separato da virgole. Con gli omonimi (nei
 dati veri: Gori Camilla di 3ª e Gori Yvaine di 5ª) la cella resta come scritta, così è chi compila a
 scegliere. La verifica dei nomi al momento del calcolo accetta entrambe le forme.
+
+**Esportazione in Word (14/9/2026, richiesta di Francesco)**: oltre a Excel e PDF il programma scrive i tre
+documenti anche in `.docx` (`orario/export_docx.py`, con python-docx), riusando le stesse celle di PDF ed
+Excel: settimanale orizzontale con una pagina per giorno, per docente e per studente in verticale, grassetto
+per il 1° strumento, corsivo per il 2°, celle grigie dove il docente non è disponibile, intestazioni ripetute
+se una tabella si spezza. Servono per ritoccare l'orario a mano prima di stamparlo.
+
+**Legenda delle caselle vuote (14/9/2026)**: in fondo a ogni pagina ora c'è scritto che una casella bianca
+vuota vuol dire "docente disponibile ma senza lezione in quell'ora", mentre la casella grigia vuol dire
+"docente non disponibile". Era una domanda ricorrente: per esempio Falchi dichiara 10 ore ma ha un solo
+allievo di corno, quindi la sua colonna è quasi tutta bianca e vuota.
 
 **Foglio «Impegni studenti» (14/9/2026, richiesta di Francesco)**: una griglia come quella dei docenti ma
 **al contrario**: la X segna l'ora in cui il ragazzo NON può esserci (sport, catechismo, altro). Un rigo per

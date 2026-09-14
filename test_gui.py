@@ -112,6 +112,12 @@ def finti_trasporti(dati, progresso=None, annulla=None, precedenti=None, solo_nu
 
 # ── Motore del test: script a passi dentro il mainloop ───────────────────────
 
+# Excel, i tre PDF e i tre Word prodotti dal calcolo
+FILE_ATTESI = sorted(["orario.xlsx",
+                      "orario_settimanale.pdf", "orario_docenti.pdf", "orario_studenti.pdf",
+                      "orario_settimanale.docx", "orario_docenti.docx", "orario_studenti.docx"])
+
+
 class BaseGui(unittest.TestCase):
     """Esegue uno script (funzione generatore) dentro il mainloop di una App vera.
 
@@ -673,8 +679,7 @@ class TestCalcolo(BaseGui):
             self.assertEqual(len(cartelle), 1, f"attesa una cartella dei risultati, trovate {cartelle}")
             self.assertTrue(cartelle[0].name.startswith("Risultati orario "))
             nomi = sorted(p.name for p in cartelle[0].iterdir())
-            self.assertEqual(nomi, ["orario.xlsx", "orario_docenti.pdf", "orario_settimanale.pdf",
-                                    "orario_studenti.pdf"])
+            self.assertEqual(nomi, FILE_ATTESI)
             self.assertEqual(app.ultima_cartella_risultati, cartelle[0])
             self.assertTrue(app.ultima_cartella_risultati.exists())
             self.assertEqual(str(app.btn_cartella.cget("state")), "normal")
@@ -844,7 +849,7 @@ class TestTrasporti(BaseGui):
             self.assertNotIn(FOGLIO_TRASPORTI, openpyxl.load_workbook(f).sheetnames)
             cartelle = [p for p in dest.iterdir() if p.is_dir()]
             self.assertEqual(len(cartelle), 1)
-            self.assertEqual(len(list(cartelle[0].iterdir())), 4)
+            self.assertEqual(len(list(cartelle[0].iterdir())), len(FILE_ATTESI))
             self.chiudi_toplevel(app, gui.FinestraFatto)
             yield
 
@@ -863,9 +868,7 @@ class TestTrasporti(BaseGui):
             #  finiscono nella stessa cartella, quindi conto i file, non le cartelle)
             cartelle = sorted((p for p in dest.iterdir() if p.is_dir()), key=lambda p: p.stat().st_mtime)
             self.assertGreaterEqual(len(cartelle), 1)
-            self.assertEqual(sorted(p.name for p in cartelle[-1].iterdir()),
-                             ["orario.xlsx", "orario_docenti.pdf", "orario_settimanale.pdf",
-                              "orario_studenti.pdf"])
+            self.assertEqual(sorted(p.name for p in cartelle[-1].iterdir()), FILE_ATTESI)
             self.assertFalse(app._calcola_dopo_trasporti)
             self.assertEqual(str(app.btn_calcola.cget("state")), "normal")
             self.chiudi_toplevel(app, gui.FinestraFatto)

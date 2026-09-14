@@ -16,6 +16,7 @@ from reportlab.platypus import (
 
 from .costanti import GIORNI, GIORNI_LUNGHI, N_GIORNI, N_ORE, ORE, ORE_FINE, ORE_LABEL
 from .export_comune import (
+    LEGENDA, LEGENDA_CASELLE,
     Cella, cognomi_doppi, etichetta_fascia, giorni_rientro, griglia_docente, griglia_studente,
     studenti_ordinati, titolo_orario,
 )
@@ -26,8 +27,6 @@ AZZURRO = colors.HexColor("#DDEBF7")
 BORDO = colors.HexColor("#888888")
 MARGINE = 10 * mm
 
-LEGENDA = ("IN GRASSETTO: primo strumento; IN CORSIVO: secondo strumento; LMC: musica da camera. "
-           + "Ore: " + "; ".join(f"{ORE_LABEL[o]} {ORE[o]}-{ORE_FINE[o]}" for o in range(N_ORE)))
 
 
 # ── Stili ────────────────────────────────────────────────────────────────────
@@ -179,7 +178,7 @@ def esporta_pdf_settimanale(orario: Orario, percorso: Path) -> Path:
             _testo(titolo_orario(orario.dati), st_tit), Spacer(1, 4),
             _testo(GIORNI_LUNGHI[g].upper(), st_giorno), Spacer(1, 6),
             _tabella_giorno(orario, g, doppi, mappa, larghezza_utile, altezza_utile),
-            Spacer(1, 8), _testo(LEGENDA, st_leg),
+            Spacer(1, 8), _testo(LEGENDA + " — " + LEGENDA_CASELLE, st_leg),
         ]
     if orario.dati.lmi:
         flussi += _pagina_lmi(orario, larghezza_utile)
@@ -240,7 +239,7 @@ def esporta_pdf_docenti(orario: Orario, percorso: Path) -> Path:
             _testo(d.nome, st_nome), Spacer(1, 4),
             _testo("   |   ".join(info), st_info), Spacer(1, 14),
             _griglia_settimana(griglia_docente(orario, d.nome, doppi, mappa), larghezza_utile, 9, 92),
-            Spacer(1, 10), _testo(LEGENDA + ". Caselle grigie: docente non disponibile.", st_leg),
+            Spacer(1, 10), _testo(LEGENDA + " — " + LEGENDA_CASELLE, st_leg),
         ]
     doc.build(flussi)
     return percorso
@@ -272,7 +271,7 @@ def esporta_pdf_studenti(orario: Orario, percorso: Path) -> Path:
             _testo(f"{s.cognome.title()} {s.nome.title()}", st_nome), Spacer(1, 3),
             _testo(f"Classe {s.classe}ª   |   {km}", st_info), Spacer(1, 8),
             _griglia_settimana(griglia_studente(orario, s.id, doppi), larghezza_utile, 8, 52),
-            Spacer(1, 6), _testo(riass, st_info), Spacer(1, 4), _testo(LEGENDA, st_leg),
+            Spacer(1, 6), _testo(riass, st_info), Spacer(1, 4), _testo(LEGENDA + " — " + LEGENDA_CASELLE, st_leg),
         ]
         flussi.append(KeepTogether(blocco))
         if i % 2 == 1:

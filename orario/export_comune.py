@@ -14,6 +14,12 @@ from .costanti import (
 from .modello import DatiInput, Lezione, Orario, Studente
 
 
+LEGENDA = ("IN GRASSETTO: primo strumento; IN CORSIVO: secondo strumento; LMC: musica da camera. "
+            "Ore: 7ª 13:30-14:30; 8ª 14:30-15:30; 9ª 15:30-16:30; 10ª 16:30-17:30")
+LEGENDA_CASELLE = ("Casella bianca vuota: il docente è disponibile ma in quell'ora non ha lezione. "
+                   "Casella grigia: il docente non è disponibile.")
+
+
 # ── Righe di testo con stile ─────────────────────────────────────────────────
 
 @dataclass

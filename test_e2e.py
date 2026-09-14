@@ -809,16 +809,42 @@ class TestExport(Caso):
         controlli.controlla(d)
         cls.orario = motore.calcola(d)
 
-    def test_quattro_file_e_fogli(self):
+    def test_file_prodotti_e_fogli(self):
         out = self.dir / "risultati"
         file = esporta_tutto(self.orario, out)
         self.assertEqual([p.name for p in file],
                          ["orario.xlsx", "orario_settimanale.pdf", "orario_docenti.pdf",
-                          "orario_studenti.pdf"])
+                          "orario_studenti.pdf", "orario_settimanale.docx", "orario_docenti.docx",
+                          "orario_studenti.docx"])
         for p in file:
             self.assertTrue(p.exists() and p.stat().st_size > 2000, p)
         wb = load_workbook(file[0])
         self.assertEqual(wb.sheetnames, GIORNI + ["Studenti", "Docenti", "Controlli", "LMI"])
+
+    def test_word_leggibile(self):
+        """I tre Word si aprono, hanno una pagina per giorno e le celle con lo stile giusto."""
+        import docx as _docx
+
+        out = self.dir / "risultati"
+        esporta_tutto(self.orario, out)
+        doc = _docx.Document(out / "orario_settimanale.docx")
+        attese = len(GIORNI) + (1 if self.orario.dati.lmi else 0)
+        self.assertEqual(len(doc.sections), attese, "una pagina per giorno, più gli LMI")
+        self.assertGreater(doc.sections[0].page_width, doc.sections[0].page_height, "pagina orizzontale")
+        t = doc.tables[0]
+        self.assertEqual(len(t.rows), 3 + 4)
+        self.assertEqual(len(t.columns), 1 + len(self.orario.dati.docenti))
+        self.assertEqual([c.text for c in t.rows[0].cells][0], "Docente")
+        testo_tabella = "\n".join(c.text for r in t.rows for c in r.cells)
+        cognomi = {s.cognome.title() for s in self.orario.dati.studenti}
+        self.assertTrue(any(c in testo_tabella for c in cognomi), "nella griglia ci sono i cognomi")
+        stili = [(run.bold, run.italic) for r in t.rows[3:] for c in r.cells
+                 for p in c.paragraphs for run in p.runs]
+        self.assertTrue(any(b for b, _ in stili), "il 1° strumento è in grassetto")
+        for nome, verticale in (("orario_docenti.docx", True), ("orario_studenti.docx", True)):
+            d2 = _docx.Document(out / nome)
+            self.assertTrue(d2.tables, nome)
+            self.assertEqual(d2.sections[0].page_width < d2.sections[0].page_height, verticale, nome)
 
     def test_celle_giorno(self):
         out = self.dir / "risultati"

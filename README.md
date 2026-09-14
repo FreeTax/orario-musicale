@@ -19,6 +19,7 @@ Apri file Excel  →  correggi nelle griglie  →  Calcola orario  →  Excel + 
    - `orario_settimanale.pdf` — la griglia da stampare e affiggere, A4 orizzontale
    - `orario_docenti.pdf` — una pagina per docente
    - `orario_studenti.pdf` — le lezioni di ogni ragazzo, per le famiglie
+   - gli stessi tre documenti anche in Word (`.docx`), per ritoccarli a mano prima di stamparli
 4. Se i dati non tornano, il programma si ferma e mostra l'elenco dei problemi, senza scrivere nulla.
 
 Al calcolo successivo la casella **Parti dall'orario già calcolato** mantiene l'orario e sposta solo le
