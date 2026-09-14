@@ -592,6 +592,37 @@ def applica_trasporti(dati: DatiInput, trasporti: dict[str, Trasporto]) -> int:
     return n
 
 
+COLONNA_MINUTI = "Minuti per tornare a casa"
+
+
+def aggiorna_minuti_studenti(tabelle: dict[str, Tabella], trasporti: dict[str, Trasporto]) -> int:
+    """Scrive nel foglio Studenti i minuti per tornare a casa (il migliore delle 4 fasce).
+
+    È un numero di comodo per chi guarda il foglio: il programma usa il dettaglio del foglio Trasporti.
+    Ritorna quante caselle ha riempito.
+    """
+    ts = tabelle.get(FOGLIO_STUDENTI)
+    if ts is None or not ts.intestazione:
+        return 0
+    try:
+        i_min = ts.colonna(COLONNA_MINUTI)
+        i_cog, i_nome = ts.colonna("Cognome"), ts.colonna("Nome")
+    except KeyError:
+        return 0
+    n = 0
+    for r in ts.righe:
+        while len(r) <= i_min:
+            r.append("")
+        cognome = (r[i_cog] or "").strip().upper()
+        if not cognome:
+            continue
+        t = trasporti.get(f"{cognome} {(r[i_nome] or '').strip().upper()}".strip())
+        minuti = t.minuti_min if t is not None else None
+        r[i_min] = "" if minuti is None else str(minuti)
+        n += minuti is not None
+    return n
+
+
 def aggiorna_totali_docenti(tabelle: dict[str, Tabella]) -> None:
     """Riempie la colonna «Ore dichiarate» e la riga TOTALE del foglio Docenti.
 

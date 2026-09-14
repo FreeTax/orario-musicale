@@ -520,9 +520,11 @@ def controlla_invarianti(caso: unittest.TestCase, orario) -> None:
             a, b = sorted((l for l in mie if l.tipo == TIPO_STRUM1), key=lambda l: l.fascia)
             caso.assertEqual((a.giorno, b.ora), (b.giorno, a.ora + 1))
             caso.assertTrue(b.due_ore and not a.due_ore)
-        if s.primo_separato and h1 == 2:
+        # le 2 ore di 1° strumento in giorni diversi, salvo giorno unico o ore fissate a mano
+        fissate = {ab.studente for ab in dati.abbinamenti if ab.tipo == TIPO_STRUM1}
+        if s.primo_separato and h1 == 2 and not s.giorno_unico and s.id not in fissate:
             a, b = sorted((l for l in mie if l.tipo == TIPO_STRUM1), key=lambda l: l.fascia)
-            caso.assertNotEqual(a.giorno, b.giorno, f"{s.id}: 1° strumento attaccato = NO")
+            caso.assertNotEqual(a.giorno, b.giorno, f"{s.id}: le 2 ore di 1° strumento nello stesso giorno")
         caso.assertLessEqual(orario.rientri_di(s.id), dati.parametri.max_rientri_vicini)
     # docenti: una lezione per fascia, solo fasce con X (o A per l'accompagnamento)
     visti = set()
@@ -743,6 +745,50 @@ class TestAbbinamentiFissi(Caso):
         o = motore.calcola(d)
         s1 = sorted(l.fascia for l in o.lezioni if l.tipo == TIPO_STRUM1)
         self.assertEqual(s1, [fascia(0, 0), fascia(1, 0)])
+        controlla_invarianti(self, o)
+
+    def test_primo_strumento_casella_vuota_in_giorni_diversi(self):
+        """Casella vuota = come NO: le 2 ore non si attaccano, vanno in due giorni."""
+        d = dati_di(studenti=[stud("ROSSI", cons="")],
+                    docenti=[doc("Bianchi", tutte()), doc("Verdi", tutte())],
+                    timeout=10)
+        controlli.controlla(d)
+        o = motore.calcola(d)
+        a, b = sorted((l for l in o.lezioni if l.tipo == TIPO_STRUM1), key=lambda l: l.fascia)
+        self.assertNotEqual(a.giorno, b.giorno)
+        controlla_invarianti(self, o)
+
+    def test_primo_strumento_attaccato_si(self):
+        d = dati_di(studenti=[stud("ROSSI", cons="SI")],
+                    docenti=[doc("Bianchi", tutte()), doc("Verdi", tutte())],
+                    timeout=10)
+        controlli.controlla(d)
+        o = motore.calcola(d)
+        a, b = sorted((l for l in o.lezioni if l.tipo == TIPO_STRUM1), key=lambda l: l.fascia)
+        self.assertEqual((a.giorno, a.ora + 1), (b.giorno, b.ora))
+        controlla_invarianti(self, o)
+
+    def test_abbinamento_fisso_vince_sui_giorni_diversi(self):
+        """Se le ore le ha scelte una persona, restano dove le ha messe anche se attaccate."""
+        d = dati_di(studenti=[stud("ROSSI", cons="")],
+                    docenti=[doc("Bianchi", tutte()), doc("Verdi", tutte())],
+                    abbinamenti=[abbinamento("Bianchi", "Rossi", "Lunedì", "13:30", "1° strumento"),
+                                 abbinamento("Bianchi", "Rossi", "Lunedì", "14:30", "1° strumento")],
+                    timeout=15)
+        controlli.controlla(d)
+        o = motore.calcola(d)
+        s1 = sorted(l.fascia for l in o.lezioni if l.tipo == TIPO_STRUM1)
+        self.assertEqual(s1, [fascia(0, 0), fascia(0, 1)])
+        controlla_invarianti(self, o)
+
+    def test_giorno_unico_vince_sui_giorni_diversi(self):
+        d = dati_di(studenti=[stud("ROSSI", cons="", unico="SI")],
+                    docenti=[doc("Bianchi", tutte()), doc("Verdi", tutte())],
+                    timeout=10)
+        avvisi = controlli.controlla(d)
+        self.assertTrue(any("vince il giorno unico" in a.messaggio for a in avvisi), [str(a) for a in avvisi])
+        o = motore.calcola(d)
+        self.assertEqual(len({l.giorno for l in o.lezioni_di("ROSSI MARIO")}), 1)
         controlla_invarianti(self, o)
 
     def test_primo_strumento_attaccato_no_in_giorni_diversi(self):

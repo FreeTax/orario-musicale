@@ -157,6 +157,10 @@ def controlla(dati: DatiInput) -> list[Problema]:
             avv(dove, f"L'indirizzo «{s.indirizzo_completo}» non è sulle mappe: i tempi dei mezzi sono calcolati "
                       "dal centro del comune, quindi approssimati.",
                 "indirizzi non trovati: tempi presi dal centro del comune")
+        if s.primo_separato and h1 == 2 and s.giorno_unico:
+            avv(dove, "«Giorno unico = SI» e le 2 ore di 1° strumento in giorni diversi non stanno insieme: "
+                      "vince il giorno unico, le due ore restano nello stesso pomeriggio.",
+                "giorno unico: 2 ore di 1° strumento nello stesso giorno")
         if s.primo_attaccato is not None and h1 != 2:
             avv(dove, f"«1° strumento attaccato = {'SI' if s.primo_attaccato else 'NO'}» ma la classe ha una "
                       "sola ora di 1° strumento: ignorato.",
@@ -369,6 +373,9 @@ def controlla(dati: DatiInput) -> list[Problema]:
                 "docenti senza nessuna ora di margine")
 
     # ── Studente: fattibilità elementare con i suoi docenti ──
+    # ragazzi le cui ore di 1° strumento sono già decise nel foglio degli abbinamenti: lì l'ora l'ha
+    # scelta una persona, e vince sulla regola dei giorni diversi (i tipi sono già stati risolti sopra)
+    s1_fissato = {ab.studente for ab in dati.abbinamenti if ab.tipo == TIPO_STRUM1 and ab.studente}
     for s in dati.studenti:
         dove = f"{FOGLIO_STUDENTI}, riga {s.riga} ({s.cognome} {s.nome}, {s.classe}ª)"
         giorni_ok = [g for g in range(5) if g not in s.giorni_non_disp]
@@ -386,11 +393,13 @@ def controlla(dati: DatiInput) -> list[Problema]:
                 if not coppie:
                     err(dove, f"«1° strumento attaccato = SI» ma il docente {doc_nome} non ha due fasce "
                               "consecutive libere nello stesso giorno.")
-            if ore == 2 and s.primo_separato:
+            if (ore == 2 and s.primo_separato and doc_nome == s.doc1
+                    and not s.giorno_unico and s.id not in s1_fissato):
                 giorni_utili = {f // N_ORE for f in fasce}
                 if len(giorni_utili) < 2:
-                    err(dove, f"«1° strumento attaccato = NO» ma con il docente {doc_nome} resta un giorno solo "
-                              "possibile: le 2 ore non possono stare in giorni diversi.")
+                    err(dove, f"Le 2 ore di 1° strumento vanno in giorni diversi, ma con il docente {doc_nome} "
+                              "resta un giorno solo possibile. Scrivere «1° strumento attaccato = SI» per "
+                              "metterle di seguito, oppure allargare la disponibilità del docente.")
         if s.giorno_unico:
             # esiste un giorno in cui tutti i suoi docenti hanno disponibilità?
             docs = [docenti[n] for n in (s.doc1, s.doc2) if n in docenti]

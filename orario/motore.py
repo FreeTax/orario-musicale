@@ -343,8 +343,9 @@ class _Modello:
             if not self.diagnosi and not any(u.fissata for u in s1):
                 for a, b in zip(s1, s1[1:]):
                     m.add(self._pos(a) < self._pos(b))
-            # «1° strumento attaccato = NO»: le 2 ore in due giorni diversi (quindi mai attaccate)
-            if s.primo_separato and len(s1) == 2:
+            # le 2 ore di 1° strumento in due giorni diversi, salvo un SI esplicito o un abbinamento
+            # fisso: se l'ora l'ha scelta una persona, quella vince sulla regola
+            if s.primo_separato and len(s1) == 2 and not s.giorno_unico and not any(u.fissata for u in s1):
                 for g in range(N_GIORNI):
                     dello_stesso_giorno = [self.x[u.idx, f] for u in s1 for f in range(fascia(g, 0), fascia(g, 0) + N_ORE)
                                            if (u.idx, f) in self.x]
@@ -670,6 +671,7 @@ def _verifica(dati: DatiInput, unita: list[_Unita], lezioni: list[Lezione]) -> N
     docenti = {d.nome: d for d in dati.docenti}
     studenti = {s.id: s for s in dati.studenti}
     par = dati.parametri
+    fissati_s1 = {sid for u in unita if u.fissata and u.tipo == TIPO_STRUM1 for sid in u.studenti}
 
     if len(lezioni) != len(unita):
         errore(f"{len(lezioni)} lezioni prodotte, {len(unita)} attese.")
@@ -739,10 +741,11 @@ def _verifica(dati: DatiInput, unita: list[_Unita], lezioni: list[Lezione]) -> N
                 errore(f"{et}: le due ore di 1° strumento non sono consecutive.")
             if a.due_ore or not b.due_ore:
                 errore(f"{et}: indicatore due_ore sbagliato.")
-        if s.primo_separato and h1 == 2:
+        if s.primo_separato and h1 == 2 and not s.giorno_unico and s.id not in fissati_s1:
             a, b = sorted((l for l in mie if l.tipo == TIPO_STRUM1), key=lambda l: l.fascia)
             if a.giorno == b.giorno:
-                errore(f"{et}: le due ore di 1° strumento sono nello stesso giorno, ma sono state chieste separate.")
+                errore(f"{et}: le due ore di 1° strumento sono nello stesso giorno, "
+                       "ma vanno in giorni diversi (casella «1° strumento attaccato» non a SI).")
         giorni = {l.giorno for l in mie}
         if s.giorno_unico and len(giorni) > 1:
             errore(f"{et}: giorno unico non rispettato ({len(giorni)} giorni).")

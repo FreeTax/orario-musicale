@@ -24,11 +24,11 @@ ESEMPIO = "ESEMPIO – cancellare"
 COLONNE_STUDENTI = ["Classe", "Cognome", "Nome",
                     "Strumento 1", "Docente 1", "Strumento 2", "Docente 2",
                     "1° strumento attaccato (SI/NO)", "Giorno unico (SI/NO)", "Giorni NON disponibili",
-                    "Comune", "Indirizzo", "Civico", "KM", "Note"]
+                    "Comune", "Indirizzo", "Civico", "KM", "Minuti per tornare a casa", "Note"]
 LARGHEZZE_STUDENTI = {"Classe": 7, "Cognome": 22, "Nome": 22, "Strumento 1": 15, "Docente 1": 16,
                       "Strumento 2": 15, "Docente 2": 16, "1° strumento attaccato (SI/NO)": 17,
                       "Giorno unico (SI/NO)": 13, "Giorni NON disponibili": 17, "Comune": 20,
-                      "Indirizzo": 26, "Civico": 8, "KM": 7, "Note": 30}
+                      "Indirizzo": 26, "Civico": 8, "KM": 7, "Minuti per tornare a casa": 16, "Note": 30}
 COLONNE_DOCENTI = (["Docente", "Strumento/i"] + COLONNE_AULE + ["Ore accompagnamento"]
                    + FASCE + ["Ore dichiarate", "Note"])
 RIGA_TOTALE = "TOTALE"   # ultima riga del foglio Docenti: somme, non è un docente
@@ -61,6 +61,8 @@ ISTRUZIONI = [
     "  Giorno unico = SI se il ragazzo deve rientrare un solo giorno a settimana.",
     "  Giorni NON disponibili: es. 'Mar, Gio' se il ragazzo non può venire quei pomeriggi. Vuoto = tutti i giorni possibili.",
     "  Comune, Indirizzo, Civico: per calcolare i tempi di ritorno a casa con i mezzi (menu Orario → Aggiorna trasporti).",
+    "  Minuti per tornare a casa: lo scrive il programma (il migliore delle 4 fasce). Il dettaglio ora per ora",
+    "  è nel foglio 'Trasporti'. Non serve compilarlo a mano.",
     "  KM: distanza casa-scuola, usata quando mancano i dati dei mezzi. Senza né KM né mezzi si è trattati come vicini.",
     "",
     "FOGLIO 'Docenti' – un rigo per docente, con la disponibilità oraria.",
@@ -160,7 +162,9 @@ def costruisci_workbook(studenti: Iterable[dict] = (), docenti: Iterable[dict] =
             "Giorno unico (SI/NO)": s.get("giorno_unico", "NO"),
             "Giorni NON disponibili": s.get("giorni_non_disp", ""),
             "Comune": s.get("comune", ""), "Indirizzo": s.get("indirizzo", ""),
-            "Civico": s.get("civico", ""), "KM": s.get("km"), "Note": s.get("note", ""),
+            "Civico": s.get("civico", ""), "KM": s.get("km"),
+            "Minuti per tornare a casa": "",   # lo scrive «Aggiorna trasporti»
+            "Note": s.get("note", ""),
         }
         return [valori[c] for c in COLONNE_STUDENTI]
 

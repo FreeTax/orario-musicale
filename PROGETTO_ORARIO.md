@@ -134,7 +134,7 @@ vanno rifatte o copiate; in futuro si può fare uno script di aggiornamento che 
 | Foglio | Contenuto | Stato precompilazione |
 |--------|-----------|-----------------------|
 | Istruzioni | Come compilare | completo |
-| Studenti | Classe, Cognome, Nome, Strumento 1, Docente 1, Strumento 2, Docente 2, 1° strumento attaccato (SI/NO), Giorno unico (SI/NO), Giorni NON disponibili, Comune, Indirizzo, Civico, KM, Note | 109 ragazzi; 81 con KM; le celle da completare sono **gialle** |
+| Studenti | Classe, Cognome, Nome, Strumento 1, Docente 1, Strumento 2, Docente 2, 1° strumento attaccato (SI/NO), Giorno unico (SI/NO), Giorni NON disponibili, Comune, Indirizzo, Civico, KM, Minuti per tornare a casa, Note | 109 ragazzi; 81 con KM; le celle da completare sono **gialle** |
 | Impegni studenti | Classe, Cognome, Nome + 20 colonne Lun 13:30 … Ven 16:30 (X = il ragazzo **non** può esserci), Note | vuoto; il pulsante «Copia i nomi dagli studenti» lo riempie |
 | Docenti | Docente, Strumento/i, **5 aule** (una per giorno), **Ore accompagnamento** (numero), 20 colonne Lun 13:30 … Ven 16:30 (X = disponibile, vuoto = no, A = ora di accompagnamento fissata a mano), **Ore dichiarate**, Note; in fondo la riga **TOTALE** | 21 docenti; aule dell'anno scorso; disponibilità **vuote** |
 | Gruppi LMC | Gruppo, Docente, Studente 1…5, Note | vuoto, con 2 righe di esempio grigie da cancellare; i gruppi li fornisce lo zio |
@@ -391,13 +391,21 @@ sono omonimi, e negli LMI questo vale per ogni nome dell'elenco separato da virg
 dati veri: Gori Camilla di 3ª e Gori Yvaine di 5ª) la cella resta come scritta, così è chi compila a
 scegliere. La verifica dei nomi al momento del calcolo accetta entrambe le forme.
 
-**Colonna «1° strumento attaccato» (14/9/2026, richiesta di Francesco)**: sostituisce «Ore consecutive» e
-ha tre stati invece di due. **SI** = le 2 ore di 1° strumento una di seguito all'altra (come prima);
-**NO** = in due giorni diversi, quindi mai attaccate; **casella vuota** = decide il programma, che di
-norma le mette nello stesso pomeriggio perché così non lascia buchi. Vale solo per le classi 1ª, 2ª e 5ª,
-le uniche con 2 ore; nelle altre è un avviso e viene ignorata. I controlli si accorgono prima se la
-richiesta è impossibile (per il SI servono due ore consecutive libere dello stesso docente, per il NO
-almeno due giorni diversi). Aprendo un file di prima, la colonna viene rinominata mantenendo i SI scritti.
+**Colonna «Minuti per tornare a casa» (14/9/2026, richiesta di Francesco)**: nel foglio Studenti, dopo i KM.
+La scrive il programma (il migliore delle 4 fasce, dal foglio Trasporti) quando si aggiornano i trasporti e a
+ogni salvataggio, così il tempo di viaggio si legge accanto al ragazzo senza aprire il foglio Trasporti, dove
+resta il dettaglio ora per ora. Non si compila a mano: viene riscritta.
+
+**Colonna «1° strumento attaccato» (14/9/2026, richiesta di Francesco)**: sostituisce «Ore consecutive».
+**SI** = le 2 ore di 1° strumento una di seguito all'altra (come prima); **NO o casella vuota** = in due
+giorni diversi, mai attaccate. Il comportamento normale è quindi la separazione: prima le due ore finivano
+quasi sempre nello stesso pomeriggio perché così non si lasciano buchi. Vale solo per le classi 1ª, 2ª e 5ª,
+le uniche con 2 ore; nelle altre è un avviso e viene ignorata. Due eccezioni, entrambe segnalate: **le ore
+fissate nel foglio degli abbinamenti** restano dove le ha messe la persona, e **«Giorno unico = SI»** vince
+(non si può venire un giorno solo e avere le due ore in giorni diversi). I controlli si accorgono prima se la
+richiesta è impossibile: per il SI servono due ore consecutive libere dello stesso docente, per la
+separazione almeno due giorni. Aprendo un file di prima, la colonna viene rinominata mantenendo i SI scritti.
+Sui dati veri: 54 ragazzi su 61 con due ore separate, i 7 restanti sono quelli fissati a mano.
 
 **Laboratori LMI negli abbinamenti fissi (14/9/2026, richiesta di Francesco)**: nella colonna Studente si
 può scrivere, al posto di un ragazzo, il nome di un laboratorio del foglio LMI (tipo «Laboratorio LMI»). Il

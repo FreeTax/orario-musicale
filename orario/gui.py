@@ -26,7 +26,7 @@ from .costanti import (
     N_ORE, ORE, ORE_FINE, ORE_LABEL, TIPO_ACCOMP, TIPO_LMC, TIPO_STRUM1, fascia,
 )
 from .lettura import (
-    Tabella, aggiorna_struttura, aggiorna_totali_docenti, applica_trasporti, costruisci_dati, leggi_orario_precedente, leggi_tabelle, leggi_trasporti,
+    Tabella, aggiorna_minuti_studenti, aggiorna_struttura, aggiorna_totali_docenti, applica_trasporti, costruisci_dati, leggi_orario_precedente, leggi_tabelle, leggi_trasporti,
     salva_orario_nel_file, salva_tabelle, salva_trasporti,
 )
 from .modello import Orario, Problema, ProblemiError
@@ -672,6 +672,23 @@ class App(ctk.CTk):
         finally:
             self._sto_sistemando = False
 
+    def _scrivi_minuti_nel_foglio(self) -> None:
+        """Riporta nel foglio Studenti i minuti per tornare a casa appena calcolati."""
+        if self.percorso is None:
+            return
+        try:
+            tabelle = self.tabelle_correnti()
+            if not aggiorna_minuti_studenti(tabelle, leggi_trasporti(self.percorso)):
+                return
+            self.tabelle = tabelle
+            sheet = self.fogli.get(FOGLIO_STUDENTI)
+            if sheet is not None and sheet.winfo_exists():
+                sheet.set_sheet_data([list(r) for r in tabelle[FOGLIO_STUDENTI].righe], redraw=True)
+                self._riga_libera_in_fondo(FOGLIO_STUDENTI)
+            salva_tabelle(self.percorso, tabelle)
+        except Exception:
+            pass
+
     def aggiorna_totali(self) -> None:
         """Ricalcola la colonna «Ore dichiarate» e la riga TOTALE del foglio Docenti."""
         if not self._con_file():
@@ -849,10 +866,15 @@ class App(ctk.CTk):
         try:
             self.tabelle = self.tabelle_correnti()
             aggiorna_totali_docenti(self.tabelle)
+            try:
+                aggiorna_minuti_studenti(self.tabelle, leggi_trasporti(self.percorso))
+            except Exception:
+                pass
             salva_tabelle(self.percorso, self.tabelle)
-            sheet_doc = self.fogli.get(FOGLIO_DOCENTI)
-            if sheet_doc is not None and sheet_doc.winfo_exists():
-                sheet_doc.set_sheet_data([list(r) for r in self.tabelle[FOGLIO_DOCENTI].righe], redraw=True)
+            for nome_foglio in (FOGLIO_DOCENTI, FOGLIO_STUDENTI):
+                sh = self.fogli.get(nome_foglio)
+                if sh is not None and sh.winfo_exists():
+                    sh.set_sheet_data([list(r) for r in self.tabelle[nome_foglio].righe], redraw=True)
         except PermissionError:
             self.mostra_problemi([Problema("errore", self.percorso.name,
                                            "Il file è aperto in Excel: chiuderlo e salvare di nuovo.")], "Salvataggio non riuscito")
@@ -964,6 +986,7 @@ class App(ctk.CTk):
                     self._aggiorna_info_precedente()
                     self.mostra_orario(ev[1], ev[2], ev[3])
                 elif ev[0] == "trasporti":
+                    self._scrivi_minuti_nel_foglio()
                     self._aggiorna_info_trasporti()
                     self.lbl_stato.configure(text="Trasporti aggiornati e salvati nel foglio 'Trasporti'.")
                     if self._calcola_dopo_trasporti and not ev[2]:
