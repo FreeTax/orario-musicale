@@ -373,20 +373,28 @@ class TestControlli(Caso):
         self.assertIn("È in più gruppi di musica da camera (1, 2)", t)
 
     def test_ore_richieste_oltre_disponibilita(self):
+        """Fasce insufficienti: il programma ne apre quante ne servono e lo segnala."""
         d = dati_di(studenti=[stud(c, classe=3) for c in ("ROSSI", "NERI", "GIALLI")],
                     docenti=[doc("Bianchi", [0]), doc("Verdi", tutte())],
                     gruppi=[gruppo(1, "Verdi", "Rossi", "Neri", "Gialli")])
-        t = self.errori(d)
+        avvisi = controlli.controlla(d)
+        t = "\n".join(str(a) for a in avvisi)
         self.assertIn("Docenti: Bianchi", t)
-        self.assertIn("ma il docente ha solo 1 fasce disponibili", t)
+        self.assertIn("Servivano 3 ore ma erano dichiarate disponibili solo 1", t)
+        self.assertIn("Da concordare con il docente", t)
+        self.assertEqual(len(d.docente("Bianchi").disponibilita), 3, "le fasce aperte sono quelle mancanti")
+        self.assertIn(0, d.docente("Bianchi").disponibilita, "la fascia già dichiarata resta")
 
     def test_docente_senza_x(self):
-        d = dati_di(studenti=[stud("ROSSI", classe=3)],
+        """Nessuna disponibilità: si aprono tutte le ore che servono, con la segnalazione."""
+        d = dati_di(studenti=[stud("ROSSI", classe=3), stud("NERI", classe=3, nome="ANNA", d1="Verdi", d2="Verdi")],
                     docenti=[doc("Bianchi", []), doc("Verdi", tutte())],
                     gruppi=[gruppo(1, "Verdi", "Rossi", "Neri")])
-        t = self.errori(d)
-        self.assertIn("Nessuna disponibilità (nessuna X)", t)
+        avvisi = controlli.controlla(d)
+        t = "\n".join(str(a) for a in avvisi)
         self.assertIn("Docenti: Bianchi", t)
+        self.assertIn("erano dichiarate disponibili solo 0 fasce", t)
+        self.assertEqual(len(d.docente("Bianchi").disponibilita), 1)
 
     def test_studente_senza_giorni(self):
         d = dati_di(studenti=[stud("ROSSI", giorni_no="Lun, Mar, Mer, Gio, Ven")],

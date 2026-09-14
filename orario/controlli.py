@@ -7,6 +7,7 @@ Come effetto collaterale risolve i cognomi dei gruppi LMC in id studente.
 
 from __future__ import annotations
 
+import difflib
 from collections import Counter, defaultdict
 
 from .costanti import (
@@ -50,7 +51,66 @@ def risolvi_studente(testo: str, studenti: list[Studente]) -> tuple[Studente | N
     cand = [s for s in studenti if _norm(s.cognome).replace("'", "") == t.replace("'", "")]
     if len(cand) == 1:
         return cand[0], ""
+    # scritto con qualche lettera diversa: si prende il più somigliante, dicendolo
+    per_id = {s.id: s for s in studenti}
+    simili = difflib.get_close_matches(t, list(per_id), n=1, cutoff=0.86)
+    if not simili:
+        senza = {_norm(s.cognome): s for s in studenti}
+        vicini = difflib.get_close_matches(t.split(" ")[0], list(senza), n=1, cutoff=0.86)
+        if vicini and len({x for x in studenti if _norm(x.cognome) == vicini[0]}) == 1:
+            s = senza[vicini[0]]
+            return s, f"scritto «{testo}», inteso come «{s.cognome.title()} {s.nome.title()}»"
+    else:
+        s = per_id[simili[0]]
+        return s, f"scritto «{testo}», inteso come «{s.cognome.title()} {s.nome.title()}»"
     return None, "non trovato nel foglio Studenti (controllare l'ortografia)"
+
+
+def _ore_richieste(dati: DatiInput) -> Counter:
+    """Ore pomeridiane che servono a ogni docente: lezioni individuali più musica da camera."""
+    ore: Counter = Counter()
+    for s in dati.studenti:
+        h1, h2, _ = s.ore
+        if s.doc1:
+            ore[s.doc1] += h1
+        if s.doc2 and h2:
+            ore[s.doc2] += h2
+    for g in dati.gruppi:
+        if g.docente:
+            ore[g.docente] += 1
+    return ore
+
+
+def apri_fasce_mancanti(dati: DatiInput) -> list[Problema]:
+    """Se a un docente non bastano le ore dichiarate, ne apre quante ne servono e lo segnala.
+
+    Meglio un orario da rivedere con il docente che nessun orario. Le fasce si scelgono
+    dove disturbano meno: prima nei giorni in cui il docente c'è già, e nelle ore più presto.
+    """
+    segnalazioni: list[Problema] = []
+    richieste = _ore_richieste(dati)
+    for d in dati.docenti:
+        servono = richieste.get(d.nome, 0) + d.ore_accomp
+        disponibili = len(d.disponibilita)
+        mancanti = servono - disponibili
+        if mancanti <= 0 or servono > N_FASCE:
+            continue
+        giorni_gia = {f // N_ORE for f in d.disponibilita}
+        libere = [f for f in range(N_FASCE) if f not in d.disponibilita]
+        # ordine di scelta: giorno già usato, poi ora più presto, poi vicinanza a una fascia già libera
+        libere.sort(key=lambda f: (0 if f // N_ORE in giorni_gia else 1,
+                                   0 if (f - 1 in d.disponibilita or f + 1 in d.disponibilita) else 1,
+                                   f % N_ORE, f))
+        aggiunte = libere[:mancanti]
+        for f in aggiunte:
+            d.disponibilita[f] = "X"
+        elenco = ", ".join(nome_fascia(f).replace("-", " alle ").replace(":", ".") for f in aggiunte)
+        segnalazioni.append(Problema(
+            "avviso", f"{FOGLIO_DOCENTI}: {d.nome}",
+            f"Servivano {servono} ore ma erano dichiarate disponibili solo {disponibili} fasce. "
+            f"Ne ho aperte {len(aggiunte)} fra quelle segnate come non disponibili, per poter calcolare "
+            f"l'orario: {elenco}. Da concordare con il docente."))
+    return segnalazioni
 
 
 def controlla(dati: DatiInput) -> list[Problema]:
@@ -101,6 +161,8 @@ def controlla(dati: DatiInput) -> list[Problema]:
             if s is None:
                 err(dove, f"Studente '{testo}': {motivo}.")
                 continue
+            if motivo:
+                avv(dove, motivo + ": conviene correggere il nome nel foglio.")
             if s.classe not in CLASSI_LMC:
                 err(dove, f"{s.cognome} {s.nome} è in {s.classe}ª: la musica da camera è solo per 3ª, 4ª e 5ª.")
                 continue
@@ -120,16 +182,9 @@ def controlla(dati: DatiInput) -> list[Problema]:
             err(dove, f"È in più gruppi di musica da camera ({', '.join(map(str, gr))}): deve stare in uno solo.")
 
     # ── Docenti: ore richieste vs disponibilità ──
-    ore_richieste: Counter = Counter()
-    for s in dati.studenti:
-        h1, h2, _ = s.ore
-        if s.doc1:
-            ore_richieste[s.doc1] += h1
-        if s.doc2 and h2:
-            ore_richieste[s.doc2] += h2
-    for g in dati.gruppi:
-        if g.docente:
-            ore_richieste[g.docente] += 1
+    # a chi non bastano le fasce dichiarate se ne aprono quante ne servono, segnalandolo
+    problemi.extend(apri_fasce_mancanti(dati))
+    ore_richieste = _ore_richieste(dati)
     for d in dati.docenti:
         dove = f"{FOGLIO_DOCENTI}: {d.nome}"
         n_x, n_a = len(d.fasce_x), len(d.fasce_a)
@@ -143,8 +198,6 @@ def controlla(dati: DatiInput) -> list[Problema]:
         if totale > N_FASCE:
             err(dove, f"Servono {richieste} ore di lezione + {d.ore_accomp} di accompagnamento = {totale}, "
                       f"ma le fasce pomeridiane della settimana sono {N_FASCE}. Va ridotto il carico o aggiunto un docente.")
-        elif n_x + n_a == 0:
-            err(dove, f"Nessuna disponibilità (nessuna X) ma servono {totale} ore.")
         elif totale > n_x + n_a:
             err(dove, f"Servono {totale} ore ({richieste} lezione + {d.ore_accomp} accompagnamento) "
                       f"ma il docente ha solo {n_x + n_a} fasce disponibili.")

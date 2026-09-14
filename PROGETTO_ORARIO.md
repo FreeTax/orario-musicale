@@ -386,6 +386,17 @@ sono omonimi, e negli LMI questo vale per ogni nome dell'elenco separato da virg
 dati veri: Gori Camilla di 3ª e Gori Yvaine di 5ª) la cella resta come scritta, così è chi compila a
 scegliere. La verifica dei nomi al momento del calcolo accetta entrambe le forme.
 
+**Fasce aperte d'ufficio (14/9/2026, richiesta di Francesco)**: se a un docente le ore dichiarate non
+bastano per gli studenti che gli sono stati assegnati, il calcolo non si ferma più. Il programma apre le
+fasce mancanti fra quelle segnate come non disponibili, scegliendole dove disturbano meno (prima nei giorni
+in cui il docente c'è già, poi accanto alle fasce che ha, poi nelle ore più presto) e lo scrive negli
+avvisi con l'elenco preciso, «da concordare con il docente». Resta un errore solo se le ore richieste
+superano le 20 fasce della settimana, che nessuna apertura può risolvere.
+
+**Nomi con qualche lettera diversa (14/9/2026)**: nei gruppi un nome scritto quasi come nel foglio Studenti
+(«Valentini Niccolo Gairo» contro «Valentini Nicolo' Giairo») non blocca più il calcolo: viene riconosciuto
+per somiglianza e segnalato, così si può correggere con calma.
+
 **Indirizzi: vie sbagliate scartate (14/9/2026)**: Photon risponde "a somiglianza" e su un indirizzo che
 non esiste nelle mappe restituiva comunque una via qualsiasi dello stesso comune (per «Via Renaggio» a
 Montecatini dava «Via Ugolino da Montecatini», per «De Papiglioni» all'Abetone «Via Del Libro Aperto»). Ora
