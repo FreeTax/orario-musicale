@@ -135,9 +135,12 @@ class TestTemplate(Caso):
         for foglio, colonne in atteso.items():
             got = [c.value for c in wb[foglio][1]][:len(colonne)]
             self.assertEqual(got, list(colonne), foglio)
-        # le 20 colonne di disponibilità ci sono tutte, nell'ordine di FASCE
+        # le 20 colonne di disponibilità ci sono tutte, di seguito e nell'ordine di FASCE
         intest = [c.value for c in wb[FOGLIO_DOCENTI][1]]
-        self.assertEqual(intest[4:4 + len(FASCE)], FASCE)
+        inizio = intest.index(FASCE[0])
+        self.assertEqual(intest[inizio:inizio + len(FASCE)], FASCE)
+        # e prima ci sono le cinque aule, una per giorno
+        self.assertEqual([c for c in intest if str(c).startswith("Aula ")], list(COLONNE_AULE))
 
     def test_righe_esempio_fanno_fallire(self):
         p = self.nuovo_file()

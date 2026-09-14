@@ -42,6 +42,8 @@ PESO_DIST_LONTANO = 40        # × lontananza × ora, in più per chi abita lont
 PESO_MINUTO_RITORNO = 1       # × minuti di attesa+viaggio dopo la lezione (dati dei mezzi): a parità, meno attesa
 PESO_SENZA_MEZZO = 3000       # lezione in una fascia dopo la quale non c'è un mezzo per tornare a casa
 PESO_BUCO_DOCENTE = 300       # per ogni fascia vuota tra due impegni del docente (sotto i buchi studente)
+PESO_LMC_ATTACCATA = 700      # ora individuale non nello stesso pomeriggio della musica da camera
+                              # (sotto il peso di un buco: non conviene creare un vuoto pur di attaccarla)
 PESO_SPOSTAMENTO = 1500       # ricalcolo: lezione spostata rispetto all'orario precedente (> 1 buco, < 2 buchi)
 
 NUM_WORKERS = max(4, os.cpu_count() or 4)  # usa tutti i core della macchina (anche su Windows)
@@ -285,6 +287,29 @@ class _Modello:
                 s1 = [u for u in unita_s if u.tipo == TIPO_STRUM1 and u.seguente is None and not u.seconda]
                 for a, b in zip(s1, s1[1:]):
                     m.add(self._pos(a) < self._pos(b))
+            # le ore individuali stanno volentieri nello stesso pomeriggio della musica da camera:
+            # senza buchi, "stesso giorno" vuol dire attaccate, prima o dopo la lezione di gruppo
+            u_lmc = next((u for u in unita_s if u.tipo == TIPO_LMC), None)
+            individuali = [u for u in unita_s if u.tipo in (TIPO_STRUM1, TIPO_STRUM2)]
+            if u_lmc is not None and individuali:
+                for u in individuali:
+                    insieme = []
+                    for g in range(N_GIORNI):
+                        fasce_g = [fascia(g, o) for o in range(N_ORE)]
+                        a = [self.x[u_lmc.idx, f] for f in fasce_g if (u_lmc.idx, f) in self.x]
+                        b = [self.x[u.idx, f] for f in fasce_g if (u.idx, f) in self.x]
+                        if not a or not b:
+                            continue
+                        v = m.new_bool_var(f"con_lmc_{s.riga}_{u.idx}_{g}")
+                        m.add(v <= sum(a))
+                        m.add(v <= sum(b))
+                        m.add(v >= sum(a) + sum(b) - 1)
+                        insieme.append(v)
+                    if insieme:
+                        attaccata = m.new_bool_var(f"attaccata_{s.riga}_{u.idx}")
+                        m.add(attaccata == sum(insieme))
+                        self.costi.append((PESO_LMC_ATTACCATA, 1 - attaccata))
+
             # giorni con almeno una lezione
             giorni_var: list = []
             for g in range(N_GIORNI):
@@ -672,6 +697,14 @@ def _avvisi(orario: Orario) -> list[Problema]:
                 for g, n in sorted(per_g.items())
             )
             avvisi.append(Problema("avviso", dove, f"{_etichetta(s)}: {testo}"))
+        lmc = next((l for l in mie if l.tipo == TIPO_LMC), None)
+        if lmc is not None:
+            staccate = [l for l in mie if l.tipo in (TIPO_STRUM1, TIPO_STRUM2) and l.giorno != lmc.giorno]
+            if staccate:
+                quali = ", ".join(f"{_NOME_TIPO[l.tipo]} il {_giorno(l.giorno)}" for l in staccate)
+                avvisi.append(Problema("avviso", dove,
+                                       f"{_etichetta(s)}: la musica da camera è il {_giorno(lmc.giorno)}, "
+                                       f"ma {quali} (non si è riusciti ad attaccarle)"))
         rientri = len({l.giorno for l in mie})
         if rientri > par.max_rientri:
             avvisi.append(Problema("avviso", dove, f"{_etichetta(s, True)}: {rientri} rientri"))

@@ -185,7 +185,13 @@ Si usa un **risolutore di vincoli** (OR-Tools CP-SAT, libreria gratuita di Googl
    "parte dai più lontani", e i vicini finiscono nelle fasce tardive solo quando non c'è più posto prima,
    non per scelta.
 
-4. **Buchi dei docenti**: anche la giornata del docente deve essere compatta (obiettivo generale del
+4. **Ore individuali attaccate alla musica da camera** (richiesta del 14/9/2026): per i ragazzi del
+   triennio le ore di strumento vanno nello stesso pomeriggio della lezione di gruppo, subito prima o subito
+   dopo. Non essendoci buchi, "stesso giorno" equivale ad "attaccate". Peso 700, sotto quello di un buco:
+   il programma non crea un vuoto pur di attaccarle. Sui dati di esempio si passa dal 25% al **91%** di ore
+   attaccate (29 su 32), sempre con zero buchi, e i ragazzi che vengono un solo pomeriggio passano da 2 a 13.
+   Le poche ore che non si riesce ad attaccare finiscono negli avvisi.
+5. **Buchi dei docenti**: anche la giornata del docente deve essere compatta (obiettivo generale del
    programma: meno buchi possibile per tutti, ragazzi e docenti). Le ore di accompagnamento si attaccano
    alle lezioni, senza spazi vuoti.
 
