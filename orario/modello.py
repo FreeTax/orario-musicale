@@ -151,7 +151,8 @@ class Abbinamento:
     note: str = ""
     riga: int = 0
     laboratorio: str = ""     # nome del laboratorio, se è un LMI
-    studenti: list[str] = field(default_factory=list)  # id dei ragazzi del laboratorio
+    gruppo: int | None = None  # numero del gruppo di musica da camera, se è un LMC di gruppo
+    studenti: list[str] = field(default_factory=list)  # id dei ragazzi del gruppo o del laboratorio
 
 
 @dataclass
@@ -202,6 +203,12 @@ class DatiInput:
         for s in self.studenti:
             if s.id == id_:
                 return s
+        return None
+
+    def gruppo_numero(self, numero: int) -> GruppoLMC | None:
+        for g in self.gruppi:
+            if g.numero == numero:
+                return g
         return None
 
     def laboratorio(self, nome: str) -> LaboratorioLMI | None:

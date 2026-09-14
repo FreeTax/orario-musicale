@@ -138,7 +138,7 @@ vanno rifatte o copiate; in futuro si può fare uno script di aggiornamento che 
 | Impegni studenti | Classe, Cognome, Nome + 20 colonne Lun 13:30 … Ven 16:30 (X = il ragazzo **non** può esserci), Note | vuoto; il pulsante «Copia i nomi dagli studenti» lo riempie |
 | Docenti | Docente, Strumento/i, **5 aule** (una per giorno), **Ore accompagnamento** (numero), 20 colonne Lun 13:30 … Ven 16:30 (X = disponibile, vuoto = no, A = ora di accompagnamento fissata a mano), **Ore dichiarate**, Note; in fondo la riga **TOTALE** | 21 docenti; aule dell'anno scorso; disponibilità **vuote** |
 | Gruppi LMC | Gruppo, Docente, Studente 1…5, Note | vuoto, con 2 righe di esempio grigie da cancellare; i gruppi li fornisce lo zio |
-| Abbinamenti fissi | Docente, Studente (o un laboratorio del foglio LMI), Tipo di lezione, Giorno, Ora, Note | vuoto; le lezioni decise a mano, che il motore blocca |
+| Abbinamenti fissi | Docente, Studente (oppure «Gruppo N» di musica da camera, oppure un laboratorio del foglio LMI), Tipo di lezione, Giorno, Ora, Note | vuoto; le lezioni decise a mano, che il motore blocca |
 | LMI | Laboratorio, Classi, Docente, Aula, Giorno e ora (mattino), Studenti, Note | vuoto, con 1 riga di esempio; il programma non li calcola, li ricopia in output |
 | Parametri | Max rientri (2), max rientri chi abita vicino (3), soglia KM "vicino" (5), tempo massimo di calcolo (120 s), indirizzo della scuola, soglia minuti "vicino" (25) | valori proposti; indirizzo scuola da compilare |
 | Trasporti | scritto dal programma (Aggiorna trasporti): per studente, minuti/arrivo/mezzi per fascia | vuoto finché non si aggiorna |
@@ -390,6 +390,14 @@ i ragazzi (si può anche digitare); scrivendo solo il cognome, il nome viene agg
 sono omonimi, e negli LMI questo vale per ogni nome dell'elenco separato da virgole. Con gli omonimi (nei
 dati veri: Gori Camilla di 3ª e Gori Yvaine di 5ª) la cella resta come scritta, così è chi compila a
 scegliere. La verifica dei nomi al momento del calcolo accetta entrambe le forme.
+
+**Gruppi di musica da camera negli abbinamenti fissi (14/9/2026, richiesta di Francesco)**: nella colonna
+Studente si scrive «Gruppo 5» (vanno bene anche «Gr. 5», «LMC 5» o il solo numero) e l'ora del gruppo resta
+lì: docente e tutti i membri occupati. Il docente si può lasciare vuoto, si prende dal foglio Gruppi LMC;
+se se ne scrive uno diverso da quello del gruppo, il calcolo si ferma e lo dice. Sotto il cofano l'abbinamento
+punta al primo membro del gruppo, così il motore riusa la strada già esistente: la lezione di gruppo è una
+sola unità. Restano valide anche le due forme di prima: un singolo ragazzo (con tipo «Musica da camera»
+si fissa comunque la lezione di tutto il suo gruppo) e i laboratori LMI.
 
 **Riallineamento del formato (14/9/2026)**: `aggiorna_struttura` aggiunge fogli, colonne e parametri, ma non
 tocca il *formato* del file: un file compilato mesi fa si ritrova le istruzioni vecchie e le colonne nuove

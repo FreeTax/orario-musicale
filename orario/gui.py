@@ -437,8 +437,8 @@ class App(ctk.CTk):
             FOGLIO_IMPEGNI: "Al contrario dei docenti: la X segna l'ora in cui il ragazzo NON può venire. "
                             "Chi non ha impegni si lascia vuoto.",
             FOGLIO_ABBINAMENTI: "Lezioni già decise che il programma deve rispettare. Il tipo si può lasciare "
-                                "vuoto: lo deduce dal docente. Al posto dello studente si può mettere un "
-                                "laboratorio del foglio LMI.",
+                                "vuoto: lo deduce dal docente. Al posto dello studente si può scrivere «Gruppo N» "
+                                "per fissare un gruppo di musica da camera, o un laboratorio del foglio LMI.",
         }.get(nome, "Si lavora come in Excel: copia e incolla, Invio scende, Tab va a destra, tasto destro per le righe.")
         ctk.CTkLabel(comandi, text=suggerimento, text_color="gray45").pack(side="left", padx=16)
 
@@ -578,6 +578,19 @@ class App(ctk.CTk):
                 return nomi[0]
         return t
 
+    def _elenco_gruppi(self) -> list[str]:
+        """«Gruppo 1», «Gruppo 2»…: negli abbinamenti fissi si mettono al posto di uno studente."""
+        try:
+            tg = self.tabelle_correnti()[FOGLIO_GRUPPI]
+        except Exception:
+            return []
+        numeri = []
+        for r in tg.righe:
+            v = tg.valore(r, "Gruppo").strip()
+            if v.isdigit():
+                numeri.append(int(v))
+        return [f"Gruppo {n}" for n in sorted(set(numeri))]
+
     def _elenco_lmi(self) -> list[str]:
         """I nomi dei laboratori: negli abbinamenti fissi si possono mettere al posto di uno studente."""
         try:
@@ -603,15 +616,16 @@ class App(ctk.CTk):
         elenco, _ = self._elenco_studenti()
         docenti = self._elenco_docenti()
         laboratori = self._elenco_lmi()
+        gruppi = self._elenco_gruppi()
         if not elenco and not docenti:
             return
-        chiave = (tuple(elenco), tuple(docenti), tuple(laboratori))
+        chiave = (tuple(elenco), tuple(docenti), tuple(laboratori), tuple(gruppi))
         if chiave == self._elenco_suggerito:
             return
         # foglio → (inizio del nome della colonna, valori suggeriti)
         da_fare = {
             FOGLIO_GRUPPI: [("studente", elenco), ("docente", docenti)],
-            FOGLIO_ABBINAMENTI: [("studente", laboratori + elenco), ("docente", docenti),
+            FOGLIO_ABBINAMENTI: [("studente", gruppi + elenco + laboratori), ("docente", docenti),
                                  ("tipo", list(NOMI_TIPO)), ("giorno", list(GIORNI_LUNGHI)),
                                  ("ora", list(ORE))],
             FOGLIO_LMI: [("docente", docenti)],
@@ -655,7 +669,9 @@ class App(ctk.CTk):
         _, per_cognome = self._elenco_studenti()
         if not per_cognome:
             return
-        laboratori = {n.upper() for n in self._elenco_lmi()} if nome_foglio == FOGLIO_ABBINAMENTI else set()
+        # nomi che non sono cognomi e non vanno completati: gruppi di musica da camera e laboratori
+        laboratori = ({n.upper() for n in self._elenco_lmi() + self._elenco_gruppi()}
+                      if nome_foglio == FOGLIO_ABBINAMENTI else set())
         try:
             testo = str(sheet.get_cell_data(riga, colonna) or "")
             if not testo.strip():

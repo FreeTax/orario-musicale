@@ -27,6 +27,16 @@ def _norm(s: str) -> str:
     return " ".join((s or "").upper().replace("’", "'").split())
 
 
+def numero_gruppo(testo: str) -> int | None:
+    """«Gruppo 5», «Gr. 5», «LMC 5» o «5» → 5; qualunque altra cosa → None."""
+    t = _norm(testo).replace(".", " ")
+    for prefisso in ("GRUPPO", "GRUPPI", "GR", "LMC", "MUSICA DA CAMERA", "CAMERA"):
+        if t.startswith(prefisso):
+            t = t[len(prefisso):].strip()
+            break
+    return int(t) if t.isdigit() else None
+
+
 def risolvi_studente(testo: str, studenti: list[Studente]) -> tuple[Studente | None, str]:
     """Cerca uno studente a partire da 'Cognome', 'Cognome Nome' o 'Cognome N.'.
 
@@ -231,7 +241,60 @@ def controlla(dati: DatiInput) -> list[Problema]:
         return f" Ore di {nome_doc} ancora libere: {elenco}{' …' if len(libere) > 10 else ''}."
     for ab in dati.abbinamenti:
         dove = f"{FOGLIO_ABBINAMENTI}, riga {ab.riga}"
-        # al posto del ragazzo si può scrivere il nome di un laboratorio LMI: allora si fissa tutto il gruppo
+        # al posto del ragazzo si può scrivere un gruppo di musica da camera («Gruppo 5»): si fissa il gruppo
+        num = numero_gruppo(ab.studente_raw) if ab.tipo in ("", TIPO_LMC) else None
+        gr_fisso = dati.gruppo_numero(num) if num is not None else None
+        if num is not None and gr_fisso is None:
+            err(dove, f"Il gruppo di musica da camera «{ab.studente_raw}» non è nel foglio {FOGLIO_GRUPPI}.")
+            continue
+        if gr_fisso is not None:
+            ab.tipo, ab.gruppo = TIPO_LMC, gr_fisso.numero
+            if not ab.docente:
+                ab.docente = gr_fisso.docente
+            etichetta = f"gruppo {gr_fisso.numero} con {ab.docente or '?'} {nome_fascia(ab.fascia)}"
+            if not ab.docente:
+                err(dove, "Manca il docente.")
+                continue
+            if ab.docente not in docenti:
+                err(dove, f"Il docente '{ab.docente}' non è nel foglio {FOGLIO_DOCENTI}.")
+                continue
+            if ab.docente != gr_fisso.docente:
+                err(dove, f"Il gruppo {gr_fisso.numero} è del docente {gr_fisso.docente}, non di {ab.docente}.")
+                continue
+            if not gr_fisso.studenti:
+                err(dove, f"Del gruppo {gr_fisso.numero} non si riconosce nessuno studente: "
+                          f"controllare il foglio {FOGLIO_GRUPPI}.")
+                continue
+            ab.studenti = list(gr_fisso.studenti)
+            ab.studente = gr_fisso.studenti[0]   # basta un membro: la lezione del gruppo è una sola
+            membri_gr = [dati.studente(i) for i in gr_fisso.studenti]
+            fermi = [x for x in membri_gr if x is not None and not x.libero(ab.fascia)]
+            if fermi:
+                err(dove, f"Il gruppo {gr_fisso.numero} non può stare {nome_fascia(ab.fascia)}: "
+                          + ", ".join(x.cognome.title() for x in fermi)
+                          + " non può esserci in quell'ora (impegni o giorno escluso).")
+                continue
+            altro = occupati_doc.get((ab.docente, ab.fascia))
+            if altro:
+                err(dove, f"{ab.docente} ha già un altro abbinamento fisso {nome_fascia(ab.fascia)} ({altro})."
+                          + ore_ancora_libere(ab.docente))
+                continue
+            gia_presi = [x.cognome.title() for x in membri_gr
+                         if x is not None and (x.id, ab.fascia) in occupati_stud]
+            if gia_presi:
+                err(dove, f"{', '.join(gia_presi)} ha già un altro abbinamento fisso {nome_fascia(ab.fascia)}.")
+                continue
+            occupati_doc[(ab.docente, ab.fascia)] = etichetta
+            for i in gr_fisso.studenti:
+                occupati_stud[(i, ab.fascia)] = etichetta
+            d_gr = docenti[ab.docente]
+            if d_gr.disponibilita.get(ab.fascia) != "X":
+                d_gr.disponibilita[ab.fascia] = "X"
+                avv(dove, f"{ab.docente} non era dichiarato disponibile {nome_fascia(ab.fascia)}: "
+                          f"l'ora è stata aperta per il gruppo {gr_fisso.numero}.",
+                    "ore aperte per rispettare un abbinamento fisso")
+            continue
+        # al posto del ragazzo si può scrivere anche il nome di un laboratorio LMI: si fissa tutto il gruppo
         lab = dati.laboratorio(ab.studente_raw) if ab.tipo in ("", TIPO_LMI) else None
         if ab.tipo == TIPO_LMI and lab is None:
             err(dove, f"Il laboratorio '{ab.studente_raw}' non è nel foglio {FOGLIO_LMI}: "

@@ -51,8 +51,10 @@ Nel foglio **Impegni studenti** la X vuol dire il contrario che nei docenti: l'o
 può esserci (sport, catechismo…). Il pulsante **Copia i nomi dagli studenti** riempie l'elenco.
 
 Nel foglio **Abbinamenti fissi** si scrivono le lezioni già decise (docente, studente, tipo, giorno, ora): il
-programma le blocca e costruisce il resto dell'orario intorno. Al posto dello studente si può mettere il nome
-di un **laboratorio del foglio LMI**: in quell'ora restano occupati il docente e tutti i suoi ragazzi.
+programma le blocca e costruisce il resto dell'orario intorno. Al posto dello studente si può scrivere
+**«Gruppo 5»** per fissare l'ora di un gruppo di musica da camera, o il nome di un **laboratorio del foglio
+LMI**: in quell'ora restano occupati il docente e tutti i ragazzi del gruppo o del laboratorio. Il docente si
+può lasciare vuoto, lo prende dal foglio Gruppi LMC o LMI.
 
 Le **2 ore di 1° strumento** (classi 1ª, 2ª e 5ª) vanno di norma in **due giorni diversi**. Per averle una di
 seguito all'altra si scrive **SI** nella colonna «1° strumento attaccato» del foglio Studenti; NO o casella
