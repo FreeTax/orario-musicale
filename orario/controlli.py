@@ -146,6 +146,14 @@ def controlla(dati: DatiInput) -> list[Problema]:
             avv(dove, "Ore consecutive = SI ma la classe ha una sola ora di 1° strumento: ignorato.")
         if len(s.giorni_non_disp) >= 5:
             err(dove, "Lo studente non è disponibile in nessun giorno.")
+        libere = [f for f in range(N_FASCE) if s.libero(f)]
+        servono = sum(s.ore)
+        if len(libere) < servono:
+            err(dove, f"Fra giorni non disponibili e impegni restano {len(libere)} ore libere, "
+                      f"ma ne servono {servono}.")
+        elif s.fasce_non_disp and len(libere) <= servono + 1:
+            avv(dove, f"Con gli impegni segnati restano solo {len(libere)} ore libere per {servono} lezioni: "
+                      "poco margine.")
 
     # ── Gruppi LMC ──
     membri: dict[str, list[int]] = defaultdict(list)
@@ -208,13 +216,14 @@ def controlla(dati: DatiInput) -> list[Problema]:
     for s in dati.studenti:
         dove = f"{FOGLIO_STUDENTI}, riga {s.riga} ({s.cognome} {s.nome}, {s.classe}ª)"
         giorni_ok = [g for g in range(5) if g not in s.giorni_non_disp]
+        libere_stud = {f for f in range(N_FASCE) if s.libero(f)}
         for doc_nome, ore in ((s.doc1, s.ore[0]), (s.doc2, s.ore[1])):
             if not ore or doc_nome not in docenti:
                 continue
             d = docenti[doc_nome]
-            fasce = [f for f in d.fasce_x if f // N_ORE in giorni_ok]
+            fasce = [f for f in d.fasce_x if f in libere_stud]
             if len(fasce) < ore:
-                err(dove, f"Il docente {doc_nome} non ha abbastanza fasce disponibili nei giorni in cui lo studente può venire "
+                err(dove, f"Il docente {doc_nome} non ha abbastanza fasce disponibili nelle ore in cui lo studente può venire "
                           f"({len(fasce)} fasce per {ore} ore).")
             if ore == 2 and s.ore_consecutive:
                 coppie = [f for f in fasce if f % N_ORE < N_ORE - 1 and (f + 1) in fasce]

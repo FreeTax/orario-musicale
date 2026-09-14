@@ -41,6 +41,8 @@ PESO_ORA_TARDIVA = 12         # × ora, per tutti: si riempiono prima le prime f
 PESO_DIST_LONTANO = 40        # × lontananza × ora, in più per chi abita lontano (i lontani ancora più presto)
 PESO_MINUTO_RITORNO = 1       # × minuti di attesa+viaggio dopo la lezione (dati dei mezzi): a parità, meno attesa
 PESO_SENZA_MEZZO = 3000       # lezione in una fascia dopo la quale non c'è un mezzo per tornare a casa
+PESO_ATTESA_INIZIO = 120      # × ore di attesa fra la fine del mattino e la prima lezione del pomeriggio,
+                              # × (1 + lontananza): chi resta a scuola non deve aspettare a vuoto
 PESO_BUCO_DOCENTE = 300       # per ogni fascia vuota tra due impegni del docente (sotto i buchi studente)
 PESO_LMC_ATTACCATA = 700      # ora individuale non nello stesso pomeriggio della musica da camera
                               # (sotto il peso di un buco: non conviene creare un vuoto pur di attaccarla)
@@ -98,14 +100,13 @@ def _crea_unita(dati: DatiInput) -> list[_Unita]:
 
     def dominio(nome_doc: str, ids: list[str], accomp: bool) -> list[int]:
         d = docenti[nome_doc]
-        vietati: set[int] = set()
+        vietate: set[int] = set()
         for i in ids:
-            vietati |= studenti[i].giorni_non_disp
+            vietate |= studenti[i].fasce_vietate     # giorni interi più impegni personali
         out = []
         for f, v in d.disponibilita.items():
-            if v == "X" or (accomp and v == "A"):
-                if giorno_ora(f)[0] not in vietati:
-                    out.append(f)
+            if (v == "X" or (accomp and v == "A")) and f not in vietate:
+                out.append(f)
         return sorted(out)
 
     def nuova(nome_doc: str, tipo: str, ids: list[str], gruppo: int | None = None) -> _Unita:
@@ -322,6 +323,13 @@ class _Modello:
                     m.add(dv >= v)
                 m.add(dv <= sum(variabili))
                 giorni_var.append(dv)
+                # attesa fra la fine del mattino e la prima lezione: il pomeriggio cominci presto
+                peso_attesa = round(PESO_ATTESA_INIZIO * (1 + km_norm[s.id]))
+                for o in range(N_ORE - 1):
+                    prima = [v for v in occ_g[:o + 1] if not isinstance(v, int)]
+                    aspetta = m.new_bool_var(f"attesa_{s.riga}_{g}_{o}")
+                    m.add(aspetta >= dv - sum(prima)) if prima else m.add(aspetta >= dv)
+                    self.costi.append((peso_attesa, aspetta))
                 # buchi nel pomeriggio
                 self.buchi_stud[s.id].extend(self._buchi(occ_g, f"bs_{s.riga}_{g}"))
             rientri = sum(giorni_var) if giorni_var else 0
@@ -615,10 +623,13 @@ def _verifica(dati: DatiInput, unita: list[_Unita], lezioni: list[Lezione]) -> N
                 errore(f"accompagnamento di {l.docente} {nome_fascia(l.fascia)} senza disponibilità.")
         elif v != "X":
             errore(f"lezione di {l.docente} {nome_fascia(l.fascia)} in fascia non disponibile ({v or 'vuota'}).")
-        # 4. giorni vietati
+        # 4. giorni vietati e impegni personali
         for sid in l.studenti:
-            if l.giorno in studenti[sid].giorni_non_disp:
-                errore(f"{_etichetta(studenti[sid])} ha lezione di {_giorno(l.giorno)}, giorno non disponibile.")
+            st = studenti[sid]
+            if l.giorno in st.giorni_non_disp:
+                errore(f"{_etichetta(st)} ha lezione di {_giorno(l.giorno)}, giorno non disponibile.")
+            elif l.fascia in st.fasce_non_disp:
+                errore(f"{_etichetta(st)} ha lezione {nome_fascia(l.fascia)}, ora in cui ha un impegno.")
     # A rispettate, numero ACCOMP, accompagnamento in coda alle lezioni della giornata
     for d in dati.docenti:
         acc = [l for l in lezioni if l.docente == d.nome and l.tipo == TIPO_ACCOMP]

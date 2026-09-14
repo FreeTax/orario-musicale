@@ -350,7 +350,7 @@ class TestApertura(BaseGui):
             app.scegli_file()
             yield
             self.assertEqual(app.percorso, f)
-            self.assertEqual(len(app.fogli), 5)
+            self.assertEqual(sorted(app.fogli), sorted(FOGLI_DATI))
             yield
         self.esegui(script)
 

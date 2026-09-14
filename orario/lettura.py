@@ -17,8 +17,9 @@ from openpyxl import load_workbook
 from datetime import datetime
 
 from .costanti import (
-    COLONNE_AULE, FASCE, FOGLI_DATI, FOGLIO_DOCENTI, FOGLIO_GRUPPI, FOGLIO_LMI, FOGLIO_ORARIO,
-    FOGLIO_PARAMETRI, FOGLIO_STUDENTI, FOGLIO_TRASPORTI, GIORNI, GIORNI_LUNGHI, ORE, ORE_FINE, fascia,
+    COLONNE_AULE, FASCE, FOGLI_DATI, FOGLI_FACOLTATIVI, FOGLIO_DOCENTI, FOGLIO_GRUPPI, FOGLIO_IMPEGNI,
+    FOGLIO_LMI, FOGLIO_ORARIO, FOGLIO_PARAMETRI, FOGLIO_STUDENTI, FOGLIO_TRASPORTI, GIORNI, GIORNI_LUNGHI,
+    ORE, ORE_FINE, fascia,
 )
 from .modello import (
     DatiInput, Docente, GruppoLMC, LaboratorioLMI, Lezione, Orario, Parametri, Problema,
@@ -61,14 +62,19 @@ def _testo(v) -> str:
 def leggi_tabelle(percorso: Path) -> dict[str, Tabella]:
     """Legge i fogli dati come tabelle di stringhe. Solleva ProblemiError se manca un foglio."""
     wb = load_workbook(percorso, data_only=True)
-    mancanti = [f for f in FOGLI_DATI if f not in wb.sheetnames]
+    mancanti = [f for f in FOGLI_DATI if f not in wb.sheetnames and f not in FOGLI_FACOLTATIVI]
     if mancanti:
         raise ProblemiError([Problema(
             "errore", "File",
             f"Mancano i fogli: {', '.join(mancanti)}. Il file deve avere i fogli {', '.join(FOGLI_DATI)}.",
         )])
+    from .template import COLONNE_IMPEGNI
+
     tabelle: dict[str, Tabella] = {}
     for nome in FOGLI_DATI:
+        if nome not in wb.sheetnames:      # foglio aggiunto in una versione successiva
+            tabelle[nome] = Tabella(nome, list(COLONNE_IMPEGNI) if nome == FOGLIO_IMPEGNI else [])
+            continue
         ws = wb[nome]
         righe = list(ws.iter_rows(values_only=True))
         if not righe:
@@ -93,7 +99,9 @@ def salva_tabelle(percorso: Path, tabelle: dict[str, Tabella]) -> None:
     wb = load_workbook(percorso)
     for nome, tab in tabelle.items():
         if nome not in wb.sheetnames:
-            continue
+            if not tab.intestazione:
+                continue
+            _crea_foglio_mancante(wb, nome, tab)
         ws = wb[nome]
         # svuota i valori delle righe dati (non le formattazioni)
         for row in ws.iter_rows(min_row=2, max_row=max(ws.max_row, 2)):
@@ -127,6 +135,27 @@ def _salva_atomico(wb, percorso: Path) -> None:
     tmp.unlink(missing_ok=True)
     raise PermissionError(f"Non riesco a sovrascrivere {percorso.name}: è aperto in un altro programma "
                           f"(Excel?). Chiuderlo e riprovare.") from ultimo
+
+
+def _crea_foglio_mancante(wb, nome: str, tab: Tabella) -> None:
+    """Aggiunge al file un foglio introdotto in una versione successiva, con la stessa impaginazione."""
+    from openpyxl.styles import Alignment, Font, PatternFill
+    from openpyxl.utils import get_column_letter
+
+    posizione = FOGLI_DATI.index(nome) if nome in FOGLI_DATI else None
+    ws = wb.create_sheet(nome, posizione + 1 if posizione is not None else None)
+    ws.append(list(tab.intestazione))
+    for i, titolo in enumerate(tab.intestazione, start=1):
+        c = ws.cell(row=1, column=i)
+        c.font = Font(bold=True)
+        c.fill = PatternFill("solid", fgColor="DDEBF7")
+        stretta = titolo in FASCE
+        c.alignment = Alignment(wrap_text=True, vertical="bottom" if stretta else "center",
+                                text_rotation=90 if stretta else 0,
+                                horizontal="center" if stretta else "general")
+        ws.column_dimensions[get_column_letter(i)].width = 6.5 if stretta else (22 if i in (2, 3) else 14)
+    ws.row_dimensions[1].height = 60 if any(t in FASCE for t in tab.intestazione) else 32
+    ws.freeze_panes = "A2"
 
 
 def _numero_o_testo(v: str):
@@ -332,6 +361,38 @@ def costruisci_dati(tabelle: dict[str, Tabella], percorso: Path | None = None) -
             continue
         lmi.append(LaboratorioLMI(nome=v("Laboratorio"), classi=v("Classi"), docente=v("Docente"),
                                   aula=v("Aula"), giorno_ora=v("Giorno"), studenti=v("Studenti"), note=v("Note")))
+
+    # Impegni degli studenti: la casella segnata è un'ora in cui il ragazzo NON c'è
+    ti = tabelle[FOGLIO_IMPEGNI]
+    if ti.intestazione:
+        per_chiave: dict[tuple[str, str], Studente] = {}
+        for st in studenti:
+            per_chiave[(st.cognome.upper(), st.nome.upper())] = st
+        idx_i: list[int | None] = []
+        for nome_fascia_col in FASCE:
+            try:
+                idx_i.append(ti.colonna(nome_fascia_col))
+            except KeyError:
+                idx_i.append(None)
+        for i, r in enumerate(ti.righe, start=2):
+            cognome = ti.valore(r, "Cognome").upper()
+            nome = ti.valore(r, "Nome").upper()
+            if not cognome:
+                continue
+            st = per_chiave.get((cognome, nome))
+            if st is None:
+                candidati = [x for k, x in per_chiave.items() if k[0] == cognome]
+                st = candidati[0] if len(candidati) == 1 else None
+            occupate = {f for f, col in enumerate(idx_i)
+                        if col is not None and col < len(r) and (r[col] or "").strip()}
+            if st is None:
+                if occupate:
+                    problemi.append(Problema("avviso", f"{FOGLIO_IMPEGNI}, riga {i}",
+                                             f"«{ti.valore(r, 'Cognome')} {ti.valore(r, 'Nome')}» non è nel foglio "
+                                             f"{FOGLIO_STUDENTI}: gli impegni segnati su questa riga sono stati "
+                                             "ignorati. Se il ragazzo non c'è più, la riga si può cancellare."))
+                continue
+            st.fasce_non_disp |= occupate
 
     # Parametri
     tp = tabelle[FOGLIO_PARAMETRI]

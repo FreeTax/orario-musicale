@@ -25,6 +25,7 @@ from openpyxl import load_workbook
 
 from orario import controlli, lettura, motore, template, trasporti
 from orario.costanti import (
+    FOGLI_DATI, FOGLIO_IMPEGNI,
     COLONNE_AULE,
     FASCE, FOGLIO_DOCENTI, FOGLIO_GRUPPI, FOGLIO_LMI, FOGLIO_PARAMETRI, FOGLIO_STUDENTI,
     FOGLIO_TRASPORTI, GIORNI, MINUTI_SENZA_MEZZO, N_GIORNI, N_ORE, ORE, TIPO_ACCOMP, TIPO_LMC,
@@ -34,7 +35,7 @@ from orario.export import esporta_tutto
 from orario.lettura import Tabella
 from orario.modello import DatiInput, GruppoLMC, Parametri, ProblemiError, Trasporto
 from orario.template import (
-    COLONNE_DOCENTI, COLONNE_GRUPPI, COLONNE_LMI, COLONNE_PARAMETRI, COLONNE_STUDENTI,
+    COLONNE_DOCENTI, COLONNE_GRUPPI, COLONNE_IMPEGNI, COLONNE_LMI, COLONNE_PARAMETRI, COLONNE_STUDENTI,
     PARAMETRI_DEFAULT,
 )
 from orario.trasporti import Coordinate, TrasportiError
@@ -80,7 +81,7 @@ def gruppo(numero, docente, *studenti, note="") -> dict:
     return d
 
 
-def tabelle(studenti=(), docenti=(), gruppi=(), lmi=(), parametri=None) -> dict[str, Tabella]:
+def tabelle(studenti=(), docenti=(), gruppi=(), lmi=(), parametri=None, impegni=()) -> dict[str, Tabella]:
     par = {n: v for n, v, _ in PARAMETRI_DEFAULT}
     par.update(parametri or {})
     return {
@@ -90,6 +91,8 @@ def tabelle(studenti=(), docenti=(), gruppi=(), lmi=(), parametri=None) -> dict[
                                 [_riga(COLONNE_DOCENTI, d) for d in docenti]),
         FOGLIO_GRUPPI: Tabella(FOGLIO_GRUPPI, list(COLONNE_GRUPPI),
                                [_riga(COLONNE_GRUPPI, g) for g in gruppi]),
+        FOGLIO_IMPEGNI: Tabella(FOGLIO_IMPEGNI, list(COLONNE_IMPEGNI),
+                                [_riga(COLONNE_IMPEGNI, i) for i in impegni]),
         FOGLIO_LMI: Tabella(FOGLIO_LMI, list(COLONNE_LMI),
                             [_riga(COLONNE_LMI, l) for l in lmi]),
         FOGLIO_PARAMETRI: Tabella(FOGLIO_PARAMETRI, list(COLONNE_PARAMETRI),
@@ -98,10 +101,18 @@ def tabelle(studenti=(), docenti=(), gruppi=(), lmi=(), parametri=None) -> dict[
 
 
 def dati_di(studenti=(), docenti=(), gruppi=(), lmi=(), parametri=None,
-            percorso=None, timeout=10) -> DatiInput:
+            percorso=None, timeout=10, impegni=()) -> DatiInput:
     par = {"Tempo massimo di calcolo (secondi)": timeout}
     par.update(parametri or {})
-    d = lettura.costruisci_dati(tabelle(studenti, docenti, gruppi, lmi, par), percorso)
+    d = lettura.costruisci_dati(tabelle(studenti, docenti, gruppi, lmi, par, impegni), percorso)
+    return d
+
+
+def impegno(cognome, nome="MARIO", classe=1, fasce=(), note="") -> dict:
+    """Riga del foglio Impegni: le fasce indicate sono ore in cui il ragazzo NON c'è."""
+    d = {"Classe": classe, "Cognome": cognome, "Nome": nome, "Note": note}
+    for f in fasce:
+        d[FASCE[f]] = "X"
     return d
 
 
@@ -128,8 +139,7 @@ class TestTemplate(Caso):
         p = self.nuovo_file()
         wb = load_workbook(p)
         self.assertEqual(wb.sheetnames,
-                         ["Istruzioni", FOGLIO_STUDENTI, FOGLIO_DOCENTI, FOGLIO_GRUPPI,
-                          FOGLIO_LMI, FOGLIO_PARAMETRI])
+                         ["Istruzioni"] + list(FOGLI_DATI))
         atteso = {FOGLIO_STUDENTI: COLONNE_STUDENTI, FOGLIO_DOCENTI: COLONNE_DOCENTI,
                   FOGLIO_GRUPPI: COLONNE_GRUPPI, FOGLIO_LMI: COLONNE_LMI,
                   FOGLIO_PARAMETRI: COLONNE_PARAMETRI}

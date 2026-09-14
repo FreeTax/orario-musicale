@@ -45,6 +45,7 @@ class Studente:
     ore_consecutive: bool = False
     giorno_unico: bool = False
     giorni_non_disp: set[int] = field(default_factory=set)  # indici 0..4
+    fasce_non_disp: set[int] = field(default_factory=set)   # singole ore occupate, indici 0..19
     note: str = ""
     riga: int = 0  # riga nel foglio Excel (per i messaggi)
     comune: str = ""
@@ -66,6 +67,15 @@ class Studente:
     def ore(self) -> tuple[int, int, int]:
         """(ore 1° strumento, ore 2° strumento, ore LMC) per la sua classe."""
         return ORE_PER_CLASSE[self.classe]
+
+    def libero(self, f: int) -> bool:
+        """Il ragazzo può venire in quella fascia: né giorno vietato né impegno personale."""
+        return giorno_ora(f)[0] not in self.giorni_non_disp and f not in self.fasce_non_disp
+
+    @property
+    def fasce_vietate(self) -> set[int]:
+        """Tutte le ore in cui non può esserci: giorni interi più singoli impegni."""
+        return {f for f in range(20) if not self.libero(f)}
 
     def etichetta(self, con_iniziale: bool = False) -> str:
         """Testo da scrivere nell'orario: cognome (+ iniziale se richiesto) + classe."""

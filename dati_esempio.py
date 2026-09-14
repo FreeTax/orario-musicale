@@ -20,7 +20,9 @@ from pathlib import Path
 
 from openpyxl.styles import PatternFill
 
-from orario.costanti import FASCE, FOGLIO_DOCENTI, FOGLIO_LMI, FOGLIO_PARAMETRI, FOGLIO_STUDENTI, N_ORE
+from orario.costanti import (
+    FASCE, FOGLIO_DOCENTI, FOGLIO_IMPEGNI, FOGLIO_LMI, FOGLIO_PARAMETRI, FOGLIO_STUDENTI, N_ORE,
+)
 from orario.template import COLONNE_GRUPPI, ESEMPIO, costruisci_workbook
 
 USCITA_DEFAULT = Path(__file__).parent / "esempio" / "orario_2026-27.xlsx"
@@ -91,6 +93,14 @@ GRUPPI = [
 ORE_CONSECUTIVE = {"AMATO", "QUERCI", "MARCHI"}       # le 2 ore di 1° strumento attaccate
 GIORNO_UNICO = {"VESTRI", "ZACCARIA"}                  # un solo rientro a settimana
 GIORNI_NON_DISPONIBILI = {"LUPI": "Mar", "NESTI": "Gio", "TURCHI": "Lun, Ven"}
+# Ore singole in cui il ragazzo ha altri impegni (sport, catechismo...): "Lun 15:30" ecc.
+IMPEGNI = {
+    "AMATO": ["Lun 15:30", "Lun 16:30", "Mer 16:30"],
+    "GRASSI": ["Mar 13:30", "Mar 14:30", "Gio 13:30"],
+    "TOSI": ["Ven 15:30", "Ven 16:30"],
+    "PAGNI": ["Mer 13:30", "Mer 14:30", "Mer 15:30", "Mer 16:30"],
+    "MERLI": ["Lun 13:30", "Mar 13:30", "Mer 13:30", "Gio 13:30", "Ven 13:30"],
+}
 
 # ── Laboratori LMI: solo ricopiati nell'orario, non calcolati ────────────────
 LMI = [
@@ -177,6 +187,15 @@ def main(uscita: Path) -> None:
         for g in range(d["giorni"]):
             for o in range(N_ORE):
                 ws.cell(row=r, column=col_prima + g * N_ORE + o).value = "X"
+
+    # ── impegni dei ragazzi ──
+    ws = wb[FOGLIO_IMPEGNI]
+    intest = [c.value for c in ws[1]]
+    i_cog = intest.index("Cognome")
+    for r in range(2, ws.max_row + 1):
+        cognome = ws.cell(row=r, column=i_cog + 1).value
+        for etichetta in IMPEGNI.get(cognome, []):
+            ws.cell(row=r, column=intest.index(etichetta) + 1).value = "X"
 
     # ── gruppi di musica da camera ──
     ws = wb["Gruppi LMC"]

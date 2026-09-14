@@ -11,7 +11,8 @@ from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.datavalidation import DataValidation
 
 from .costanti import (
-    COLONNE_AULE, FASCE, FOGLIO_DOCENTI, FOGLIO_GRUPPI, FOGLIO_LMI, FOGLIO_PARAMETRI, FOGLIO_STUDENTI,
+    COLONNE_AULE, FASCE, FOGLIO_DOCENTI, FOGLIO_GRUPPI, FOGLIO_IMPEGNI, FOGLIO_LMI, FOGLIO_PARAMETRI,
+    FOGLIO_STUDENTI,
 )
 
 HEAD_FILL = PatternFill("solid", fgColor="DDEBF7")
@@ -33,6 +34,7 @@ COLONNE_DOCENTI = (["Docente", "Strumento/i"] + COLONNE_AULE + ["Ore accompagnam
 COLONNE_GRUPPI = ["Gruppo", "Docente", "Studente 1", "Studente 2", "Studente 3", "Studente 4", "Studente 5", "Note"]
 COLONNE_LMI = ["Laboratorio", "Classi", "Docente", "Aula", "Giorno e ora (mattino)",
                "Studenti (Cognome Nome, separati da virgola)", "Note"]
+COLONNE_IMPEGNI = ["Classe", "Cognome", "Nome"] + FASCE + ["Note"]
 COLONNE_PARAMETRI = ["Parametro", "Valore", "Spiegazione"]
 PARAMETRI_DEFAULT = [
     ("Max rientri per ragazzo", 2, "Numero massimo di pomeriggi a settimana (di norma). Chi abita vicino può arrivare al valore sotto."),
@@ -72,6 +74,11 @@ ISTRUZIONI = [
     "FOGLIO 'Gruppi LMC' – un rigo per gruppo di musica da camera (classi 3, 4, 5), da 2 a 5 ragazzi.",
     "  Scrivi 'Cognome Nome' come nel foglio 'Studenti'. Nel programma c'è il menu a tendina con tutti i ragazzi:",
     "  se scrivi solo il cognome e non ci sono omonimi, il nome viene aggiunto da solo.",
+    "",
+    "FOGLIO 'Impegni studenti' – le ore in cui un ragazzo NON può venire (sport, catechismo, altro).",
+    "  ATTENZIONE: qui è al contrario del foglio Docenti. La X segna l'ora in cui il ragazzo NON c'è.",
+    "  Chi non ha impegni si lascia con la riga vuota. Nel programma il pulsante 'Compila dagli studenti'",
+    "  ricopia l'elenco dei nomi dal foglio Studenti.",
     "",
     "FOGLIO 'LMI' – laboratori di musica d'insieme (2 ore, orario del MATTINO). Un rigo per laboratorio.",
     "  Il programma NON li calcola: li ricopia così come sono in una pagina dell'orario.",
@@ -180,6 +187,27 @@ def costruisci_workbook(studenti: Iterable[dict] = (), docenti: Iterable[dict] =
     dv = DataValidation(type="whole", operator="between", formula1="1", formula2="5")
     ws.add_data_validation(dv)
     dv.add(f"{lettera('Classe')}2:{lettera('Classe')}{fondo}")
+
+    # Impegni degli studenti: al contrario dei docenti, la casella segnata è un'ora in cui NON ci sono
+    ws = wb.create_sheet(FOGLIO_IMPEGNI)
+    coli = {nome: i for i, nome in enumerate(COLONNE_IMPEGNI, start=1)}
+    prima_i = coli[FASCE[0]]
+    largi = {coli["Classe"]: 7, coli["Cognome"]: 22, coli["Nome"]: 22, len(COLONNE_IMPEGNI): 30}
+    for i in range(prima_i, prima_i + len(FASCE)):
+        largi[i] = 6.5
+    _intesta(ws, COLONNE_IMPEGNI, largi)
+    for i in range(prima_i, prima_i + len(FASCE)):
+        ws.cell(row=1, column=i).alignment = Alignment(wrap_text=True, text_rotation=90,
+                                                      horizontal="center", vertical="bottom")
+    ws.row_dimensions[1].height = 60
+    for s_ in sorted(studenti, key=lambda x: (x["classe"], x["cognome"], x["nome"])):
+        ws.append([s_["classe"], s_["cognome"], s_["nome"]] + [""] * len(FASCE) + [""])
+    if not studenti and esempi:
+        ws.append([4, "NERI", "ANNA"] + ["X"] * 4 + [""] * 16 + [ESEMPIO + " (il martedì fa sport)"])
+        _grigia(ws, 2, len(COLONNE_IMPEGNI))
+    dv = DataValidation(type="list", formula1='"X"', allow_blank=True)
+    ws.add_data_validation(dv)
+    dv.add(f"{get_column_letter(prima_i)}2:{get_column_letter(prima_i + len(FASCE) - 1)}{max(ws.max_row, 2) + 200}")
 
     # Docenti
     ws = wb.create_sheet(FOGLIO_DOCENTI)

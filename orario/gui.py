@@ -21,7 +21,8 @@ from openpyxl.utils import get_column_letter
 from tksheet import Sheet
 
 from .costanti import (
-    ETICHETTA_ACCOMP, FOGLI_DATI, FOGLIO_DOCENTI, FOGLIO_GRUPPI, FOGLIO_LMI, FOGLIO_STUDENTI, GIORNI_LUNGHI,
+    ETICHETTA_ACCOMP, FOGLI_DATI, FOGLIO_DOCENTI, FOGLIO_GRUPPI, FOGLIO_IMPEGNI, FOGLIO_LMI,
+    FOGLIO_STUDENTI, GIORNI_LUNGHI,
     N_ORE, ORE, ORE_FINE, ORE_LABEL, TIPO_ACCOMP, TIPO_LMC, TIPO_STRUM1, fascia,
 )
 from .lettura import (
@@ -146,6 +147,7 @@ class App(ctk.CTk):
         m_mod.add_command(label="Elimina righe selezionate", command=self.elimina_righe_corrente)
         m_mod.add_separator()
         m_mod.add_command(label="Compila i docenti dagli studenti", command=self.compila_docenti)
+        m_mod.add_command(label="Copia i nomi negli impegni studenti", command=self.compila_impegni)
         m_mod.add_separator()
         m_mod.add_command(label="Suggerimento: doppio clic su una cella per modificarla; tasto destro per altre azioni", state="disabled")
         barra.add_cascade(label="Modifica", menu=m_mod)
@@ -412,10 +414,16 @@ class App(ctk.CTk):
             ctk.CTkButton(comandi, text="👥  Compila dagli studenti", width=200, height=28,
                           fg_color="#3a6ea5", hover_color="#2f5a86",
                           command=self.compila_docenti).pack(side="left", padx=(6, 0))
+        if nome == FOGLIO_IMPEGNI:
+            ctk.CTkButton(comandi, text="👥  Copia i nomi dagli studenti", width=220, height=28,
+                          fg_color="#3a6ea5", hover_color="#2f5a86",
+                          command=self.compila_impegni).pack(side="left", padx=(6, 0))
         suggerimento = {
             FOGLIO_STUDENTI: "Le celle gialle vanno completate. Si incolla da Excel con "
                              + ("⌘V" if platform.system() == "Darwin" else "Ctrl+V") + ".",
             FOGLIO_DOCENTI: "X nelle ore disponibili, A nelle ore di accompagnamento fissate, vuoto se non disponibile.",
+            FOGLIO_IMPEGNI: "Al contrario dei docenti: la X segna l'ora in cui il ragazzo NON può venire. "
+                            "Chi non ha impegni si lascia vuoto.",
         }.get(nome, "Si lavora come in Excel: copia e incolla, Invio scende, Tab va a destra, tasto destro per le righe.")
         ctk.CTkLabel(comandi, text=suggerimento, text_color="gray45").pack(side="left", padx=16)
 
@@ -668,6 +676,52 @@ class App(ctk.CTk):
         parti.append("\nRestano da compilare a mano le aule e le disponibilità. Premi Salva per tenere le modifiche.")
         messagebox.showinfo("Compila dagli studenti", "\n\n".join(parti))
         self.lbl_stato.configure(text=f"Docenti compilati: {len(aggiunti)} aggiunti, {len(aggiornati)} completati")
+
+    def compila_impegni(self) -> None:
+        """Ricopia l'elenco dei ragazzi dal foglio Studenti, lasciando le ore già segnate."""
+        if not self._con_file():
+            return
+        tabelle = self.tabelle_correnti()
+        ts, ti = tabelle[FOGLIO_STUDENTI], tabelle[FOGLIO_IMPEGNI]
+        i_cl, i_cog, i_nome = ti.colonna("Classe"), ti.colonna("Cognome"), ti.colonna("Nome")
+        n_col = len(ti.intestazione)
+        gia = {(r[i_cog].strip().upper(), r[i_nome].strip().upper()) for r in ti.righe
+               if i_cog < len(r) and r[i_cog].strip()}
+        aggiunti = []
+        for r in ts.righe:
+            cognome, nome = ts.valore(r, "Cognome"), ts.valore(r, "Nome")
+            if not cognome or (cognome.upper(), nome.upper()) in gia:
+                continue
+            nuova = [""] * n_col
+            nuova[i_cl] = ts.valore(r, "Classe")
+            nuova[i_cog], nuova[i_nome] = cognome, nome
+            ti.righe.append(nuova)
+            aggiunti.append(f"{cognome.title()} {nome.title()}")
+        nel_foglio = {(ts.valore(r, "Cognome").upper(), ts.valore(r, "Nome").upper()) for r in ts.righe}
+        estranei = [f"{r[i_cog]} {r[i_nome]}" for r in ti.righe
+                    if i_cog < len(r) and r[i_cog].strip()
+                    and (r[i_cog].strip().upper(), r[i_nome].strip().upper()) not in nel_foglio]
+
+        def chiave(r):
+            classe = r[i_cl] if i_cl < len(r) else ""
+            return (int(classe) if str(classe).strip().isdigit() else 9,
+                    r[i_cog].strip().lower() if i_cog < len(r) else "",
+                    r[i_nome].strip().lower() if i_nome < len(r) else "")
+
+        ti.righe.sort(key=chiave)
+        self.fogli[FOGLIO_IMPEGNI].set_sheet_data([list(r) for r in ti.righe], redraw=True)
+        self._adatta_colonne(self.fogli[FOGLIO_IMPEGNI], FOGLIO_IMPEGNI)
+        self._riga_libera_in_fondo(FOGLIO_IMPEGNI)
+        self.tabs.set(FOGLIO_IMPEGNI)
+        self.modificato = True
+        parti = [f"Ragazzi aggiunti all'elenco: {len(aggiunti)}." if aggiunti
+                 else "L'elenco era già completo: nessun ragazzo da aggiungere."]
+        if estranei:
+            parti.append(f"Ci sono {len(estranei)} righe con nomi che non stanno nel foglio Studenti: "
+                         + ", ".join(estranei[:8]) + (" …" if len(estranei) > 8 else "") + ".")
+        parti.append("Ricorda: qui la X segna l'ora in cui il ragazzo NON può venire.")
+        messagebox.showinfo("Copia i nomi dagli studenti", "\n\n".join(parti))
+        self.lbl_stato.configure(text=f"Elenco impegni aggiornato: {len(aggiunti)} ragazzi aggiunti")
 
     def aggiungi_riga(self, nome: str) -> None:
         sheet = self.fogli[nome]

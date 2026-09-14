@@ -386,6 +386,20 @@ sono omonimi, e negli LMI questo vale per ogni nome dell'elenco separato da virg
 dati veri: Gori Camilla di 3ª e Gori Yvaine di 5ª) la cella resta come scritta, così è chi compila a
 scegliere. La verifica dei nomi al momento del calcolo accetta entrambe le forme.
 
+**Foglio «Impegni studenti» (14/9/2026, richiesta di Francesco)**: una griglia come quella dei docenti ma
+**al contrario**: la X segna l'ora in cui il ragazzo NON può esserci (sport, catechismo, altro). Un rigo per
+ragazzo con classe, cognome e nome; chi non ha impegni resta vuoto. È un vincolo rigido, si somma alla
+colonna "Giorni NON disponibili" del foglio Studenti (che vieta il giorno intero). Nel programma il pulsante
+"Copia i nomi dagli studenti" riempie l'elenco. I file creati prima non hanno il foglio: viene aggiunto vuoto
+all'apertura e scritto nel file al primo salvataggio.
+
+**Attesa dopo il mattino (14/9/2026, dall'analisi dell'output)**: il programma contava i buchi *fra* le
+lezioni del pomeriggio ma non l'attesa fra la fine del mattino e la prima lezione, che per chi resta a scuola
+è tempo perso uguale. Era il motivo per cui capitava una lezione isolata alle 15:30 o alle 16:30. Ora ogni
+ora di attesa costa 120, moltiplicato per la lontananza del ragazzo. Sui dati veri: ore di attesa da 128 a
+80, pomeriggi che cominciano alle 16:30 da 19 a 5, ragazzi che vengono un solo pomeriggio da 50 a 65, sempre
+con zero buchi.
+
 **Fasce aperte d'ufficio (14/9/2026, richiesta di Francesco)**: se a un docente le ore dichiarate non
 bastano per gli studenti che gli sono stati assegnati, il calcolo non si ferma più. Il programma apre le
 fasce mancanti fra quelle segnate come non disponibili, scegliendole dove disturbano meno (prima nei giorni

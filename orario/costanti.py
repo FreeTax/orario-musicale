@@ -49,7 +49,9 @@ FOGLIO_DOCENTI = "Docenti"
 FOGLIO_GRUPPI = "Gruppi LMC"
 FOGLIO_LMI = "LMI"
 FOGLIO_PARAMETRI = "Parametri"
-FOGLI_DATI = [FOGLIO_STUDENTI, FOGLIO_DOCENTI, FOGLIO_GRUPPI, FOGLIO_LMI, FOGLIO_PARAMETRI]
+FOGLIO_IMPEGNI = "Impegni studenti"  # ore in cui il ragazzo NON può esserci (al contrario dei docenti)
+FOGLI_DATI = [FOGLIO_STUDENTI, FOGLIO_IMPEGNI, FOGLIO_DOCENTI, FOGLIO_GRUPPI, FOGLIO_LMI, FOGLIO_PARAMETRI]
+FOGLI_FACOLTATIVI = {FOGLIO_IMPEGNI}   # se manca, si crea vuoto: i file di prima non ce l'hanno
 FOGLIO_ORARIO = "Orario calcolato"  # scritto dal programma dopo il calcolo, riusato al ricalcolo
 FOGLIO_TRASPORTI = "Trasporti"  # scritto da "Aggiorna trasporti": minuti di ritorno a casa per fascia
 
