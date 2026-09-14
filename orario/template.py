@@ -45,7 +45,6 @@ PARAMETRI_DEFAULT = [
     ("Tempo massimo di calcolo (secondi)", 120, "Oltre questo tempo il programma restituisce la migliore soluzione trovata."),
     ("Indirizzo della scuola", "", "Via, numero e comune della scuola: punto di partenza per il calcolo dei mezzi pubblici (menu Orario → Aggiorna trasporti)."),
     ("Soglia minuti 'abita vicino'", 25, "Se ci sono i dati dei trasporti: sotto questi minuti di ritorno a casa il ragazzo è considerato vicino."),
-    ("Soglia minuti 'tutto in un giorno'", 90, "Sopra questi minuti di viaggio il ragazzo fa tutte le lezioni lo stesso pomeriggio, nelle prime ore: per lui la regola delle 2 ore di 1° strumento in giorni diversi non vale."),
 ]
 
 ISTRUZIONI = [
@@ -57,8 +56,8 @@ ISTRUZIONI = [
     "FOGLIO 'Studenti' – un rigo per ragazzo.",
     "  Classe: 1–5.  Docente 1 / Docente 2: devono coincidere con un nome del foglio 'Docenti' (menu a tendina).",
     "  Per la classe 5 il 2° strumento resta vuoto.",
-    "  1° strumento attaccato (solo classi 1, 2, 5, che hanno 2 ore): SI = le due ore una di seguito all'altra,",
-    "  NO = in due giorni diversi, casella vuota = decide il programma.",
+    "  1° strumento attaccato (solo classi 1, 2, 5, che hanno 2 ore): SI = le due ore una di seguito all'altra.",
+    "  NO o casella vuota = in due giorni con almeno un giorno in mezzo (lun/mer, mar/ven...), mai di fila.",
     "  Giorno unico = SI se il ragazzo deve rientrare un solo giorno a settimana.",
     "  Giorni NON disponibili: es. 'Mar, Gio' se il ragazzo non può venire quei pomeriggi. Vuoto = tutti i giorni possibili.",
     "  Comune, Indirizzo, Civico: per calcolare i tempi di ritorno a casa con i mezzi (menu Orario → Aggiorna trasporti).",

@@ -65,10 +65,6 @@ class Studente:
             return 10.0 + 2.5 * self.km
         return 0.0
 
-    def molto_lontano(self, par: "Parametri") -> bool:
-        """Abita così lontano che conviene fargli fare tutto in un pomeriggio solo."""
-        return self.minuti_ritorno >= par.soglia_min_giorno_unico
-
     @property
     def ore_consecutive(self) -> bool:
         """Le 2 ore di 1° strumento devono essere una di seguito all'altra."""
@@ -194,7 +190,6 @@ class Parametri:
     max_rientri_vicini: int = 3
     soglia_km_vicino: float = 5.0
     soglia_min_vicino: int = 25  # minuti di ritorno a casa sotto i quali si è "vicini" (se ci sono i trasporti)
-    soglia_min_giorno_unico: int = 90  # sopra questi minuti di viaggio: tutte le lezioni lo stesso giorno
     timeout_s: int = 120
     indirizzo_scuola: str = ""
 

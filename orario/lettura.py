@@ -453,8 +453,6 @@ def costruisci_dati(tabelle: dict[str, Tabella], percorso: Path | None = None) -
             continue
         if "indirizzo" in chiave and "scuola" in chiave:
             par.indirizzo_scuola = val
-        elif "giorno" in chiave and "minut" in chiave:
-            par.soglia_min_giorno_unico = _int(val, par.soglia_min_giorno_unico)
         elif "vicino" in chiave and "soglia" in chiave and "minut" in chiave:
             par.soglia_min_vicino = _int(val, par.soglia_min_vicino)
         elif "vicino" in chiave and "soglia" in chiave:

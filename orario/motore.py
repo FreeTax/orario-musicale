@@ -38,22 +38,35 @@ PESO_BUCO = 1000              # per ogni fascia vuota tra due lezioni dello stud
 PESO_RIENTRO_BASE = 600       # per ogni rientro oltre max_rientri: × (1 + 2·km_norm)
 PESO_RIENTRO_VICINO = 150     # idem, per chi abita vicino
 PESO_ORA_TARDIVA = 12         # × ora, per tutti: si riempiono prima le prime fasce del pomeriggio
-PESO_DIST_LONTANO = 40        # × lontananza × ora, in più per chi abita lontano (i lontani ancora più presto)
+PESO_DIST_LONTANO = 200       # × lontananza × ora: chi abita lontano paga caro le ore tarde
+PESO_VICINO_PRESTO = 150      # × (1 − lontananza) × ore che mancano alla fine: chi abita vicino paga le
+                              # ore presto, così le prime ore restano a chi viene da fuori. Insieme
+                              # valgono meno di un buco: l'ordine per distanza non crea vuoti a nessuno.
 PESO_MINUTO_ARRIVO = 1        # × minuti di ritardo dell'arrivo a casa rispetto al meglio che quel ragazzo può
                               # fare, × (1 + lontananza). Conta l'ORA IN CUI ARRIVA, non la durata del viaggio:
                               # se il treno è sempre quello, finire più tardi non lo fa arrivare più tardi, e
                               # prima si contava solo l'attesa, che premiava l'ultima ora.
+PESO_MINUTO_SERA = 2          # × minuti di arrivo a casa dopo le 17:30, per tutti e in valore assoluto:
+                              # è il danno vero (cena, compiti, buio). Serve anche a dare le prime ore a
+                              # chi ha i mezzi peggiori: il termine relativo, misurato sul meglio che quel
+                              # ragazzo può fare, non distingueva chi arriva comunque tardissimo.
 PESO_ULTIMA_LONTANO = 400     # × lontananza: chi abita lontano evita l'ultima fascia, anche quando il viaggio
                               # sarebbe identico (uscire alle 17:30 da lontano è comunque peggio)
+PESO_GIORNI_VICINI = 4000     # le 2 ore di 1° strumento nello stesso giorno o in due giorni di fila.
+                              # Sopra ogni altro peso, e sopra il costo di spostarle entrambe in un
+                              # ricalcolo: si accetta un rientro in più pur di distanziarle. Resta però
+                              # cedevole, perché con la regola rigida certi orari non esisterebbero.
 PESO_RIENTRO_LONTANO = 350    # × lontananza, per ogni pomeriggio oltre il primo: chi viene da lontano
                               # concentra tutto in un giorno anche restando sotto il massimo dei rientri
 PESO_SENZA_MEZZO = 3000       # lezione in una fascia dopo la quale non c'è un mezzo per tornare a casa
 PESO_ATTESA_INIZIO = 120      # × ore di attesa fra la fine del mattino e la prima lezione del pomeriggio,
-                              # × (1 + lontananza): chi resta a scuola non deve aspettare a vuoto
+                              # × (0,3 + 1,7 × lontananza): aspettare a vuoto pesa a chi non può tornare
+                              # a casa nel frattempo; chi abita a dieci minuti ci torna
 PESO_BUCO_DOCENTE = 300       # per ogni fascia vuota tra due impegni del docente (sotto i buchi studente)
 PESO_LMC_ATTACCATA = 700      # ora individuale non nello stesso pomeriggio della musica da camera
                               # (sotto il peso di un buco: non conviene creare un vuoto pur di attaccarla)
-PESO_SPOSTAMENTO = 1500       # ricalcolo: lezione spostata rispetto all'orario precedente (> 1 buco, < 2 buchi)
+PESO_SPOSTAMENTO = 800        # ricalcolo: lezione spostata rispetto all'orario precedente. Sotto il peso
+                              # di un buco: adattare l'orario esistente non deve mai crearne uno
 
 NUM_WORKERS = max(4, os.cpu_count() or 4)  # usa tutti i core della macchina (anche su Windows)
 TIMEOUT_DIAGNOSI_S = 30
@@ -198,6 +211,7 @@ def _crea_unita(dati: DatiInput) -> list[_Unita]:
 # ── Km normalizzati ──────────────────────────────────────────────────────────
 
 _MINUTI_FINE = [int(o[:2]) * 60 + int(o[3:5]) for o in ORE_FINE]
+ARRIVO_SERA = 17 * 60 + 30    # oltre quest'ora l'arrivo a casa comincia a pesare in assoluto
 
 
 def _arrivo_a_casa(t, o: int) -> int | None:
@@ -359,15 +373,22 @@ class _Modello:
             if not self.diagnosi and not any(u.fissata for u in s1):
                 for a, b in zip(s1, s1[1:]):
                     m.add(self._pos(a) < self._pos(b))
-            # le 2 ore di 1° strumento in due giorni diversi, salvo un SI esplicito o un abbinamento
-            # fisso: se l'ora l'ha scelta una persona, quella vince sulla regola
+            # le 2 ore di 1° strumento in due giorni NON consecutivi (almeno un giorno in mezzo),
+            # salvo un SI esplicito o un abbinamento fisso: se l'ora l'ha scelta una persona, vince lei.
+            # Vietando ogni coppia di giorni vicini (g, g+1) si escludono sia lo stesso giorno sia il
+            # giorno dopo: restano lunedì-mercoledì, lunedì-giovedì, lunedì-venerdì, martedì-giovedì…
+            # vale anche per chi abita lontano: due lezioni dello stesso strumento troppo vicine non
+            # hanno senso, e su questo la distanza da casa non conta
             if (s.primo_separato and len(s1) == 2 and not s.giorno_unico
-                    and not s.molto_lontano(par) and not any(u.fissata for u in s1)):
-                for g in range(N_GIORNI):
-                    dello_stesso_giorno = [self.x[u.idx, f] for u in s1 for f in range(fascia(g, 0), fascia(g, 0) + N_ORE)
-                                           if (u.idx, f) in self.x]
-                    if len(dello_stesso_giorno) > 1:
-                        m.add(sum(dello_stesso_giorno) <= 1)
+                    and not any(u.fissata for u in s1)):
+                for g in range(N_GIORNI - 1):
+                    vicini = [self.x[u.idx, f] for u in s1
+                              for f in range(fascia(g, 0), fascia(g + 1, 0) + N_ORE)
+                              if (u.idx, f) in self.x]
+                    if len(vicini) > 1:
+                        viola = m.new_bool_var(f"vicine_{s.riga}_{g}")
+                        m.add(sum(vicini) - 1 <= viola)
+                        self.costi.append((PESO_GIORNI_VICINI, viola))
             # le ore individuali stanno volentieri nello stesso pomeriggio della musica da camera:
             # senza buchi, "stesso giorno" vuol dire attaccate, prima o dopo la lezione di gruppo
             u_lmc = next((u for u in unita_s if u.tipo == TIPO_LMC), None)
@@ -404,7 +425,7 @@ class _Modello:
                 m.add(dv <= sum(variabili))
                 giorni_var.append(dv)
                 # attesa fra la fine del mattino e la prima lezione: il pomeriggio cominci presto
-                peso_attesa = round(PESO_ATTESA_INIZIO * (1 + km_norm[s.id]))
+                peso_attesa = round(PESO_ATTESA_INIZIO * (0.3 + 1.7 * km_norm[s.id]))
                 for o in range(N_ORE - 1):
                     prima = [v for v in occ_g[:o + 1] if not isinstance(v, int)]
                     aspetta = m.new_bool_var(f"attesa_{s.riga}_{g}_{o}")
@@ -443,8 +464,10 @@ class _Modello:
                 if isinstance(v, int):
                     continue
                 o = giorno_ora(f)[1]
-                # criterio principale (uguale con km o con mezzi): chi abita lontano (kn alto) va messo presto
-                c = round((PESO_ORA_TARDIVA + PESO_DIST_LONTANO * kn) * o)
+                # criterio principale (uguale con km o con mezzi): le prime ore a chi abita lontano,
+                # le ultime a chi abita vicino
+                c = round((PESO_ORA_TARDIVA + PESO_DIST_LONTANO * kn) * o
+                          + PESO_VICINO_PRESTO * (1 - kn) * (N_ORE - 1 - o))
                 if o == N_ORE - 1 and kn:
                     c += round(PESO_ULTIMA_LONTANO * kn)   # i lontani saltano l'ultima ora
                 if tr is not None and tr.valido:
@@ -457,6 +480,7 @@ class _Modello:
                         casa = _arrivo_a_casa(tr, o)
                         if casa is not None and prima_possibile is not None:
                             c += round(PESO_MINUTO_ARRIVO * (1 + kn) * max(0, casa - prima_possibile))
+                            c += PESO_MINUTO_SERA * max(0, casa - ARRIVO_SERA)
                 if c:
                     self.costi.append((c, v))
             for b in self.buchi_stud[s.id]:
@@ -773,12 +797,7 @@ def _verifica(dati: DatiInput, unita: list[_Unita], lezioni: list[Lezione]) -> N
                 errore(f"{et}: le due ore di 1° strumento non sono consecutive.")
             if a.due_ore or not b.due_ore:
                 errore(f"{et}: indicatore due_ore sbagliato.")
-        if (s.primo_separato and h1 == 2 and not s.giorno_unico
-                and not s.molto_lontano(par) and s.id not in fissati_s1):
-            a, b = sorted((l for l in mie if l.tipo == TIPO_STRUM1), key=lambda l: l.fascia)
-            if a.giorno == b.giorno:
-                errore(f"{et}: le due ore di 1° strumento sono nello stesso giorno, "
-                       "ma vanno in giorni diversi (casella «1° strumento attaccato» non a SI).")
+
         giorni = {l.giorno for l in mie}
         if s.giorno_unico and len(giorni) > 1:
             errore(f"{et}: giorno unico non rispettato ({len(giorni)} giorni).")
@@ -797,6 +816,17 @@ def _avvisi(orario: Orario) -> list[Problema]:
     par = dati.parametri
     km_norm = _km_norm(dati)
     avvisi: list[Problema] = []
+    for s in dati.studenti:
+        if s.ore[0] != 2 or not s.primo_separato or s.giorno_unico:
+            continue
+        gg = sorted(l.giorno for l in orario.lezioni_di(s.id) if l.tipo == TIPO_STRUM1)
+        if len(gg) == 2 and gg[1] - gg[0] < 2:
+            come = "nello stesso giorno" if gg[0] == gg[1] else "in due giorni di fila"
+            avvisi.append(Problema(
+                "avviso", f"{s.cognome} {s.nome} ({s.classe}ª)",
+                f"le 2 ore di 1° strumento sono {come} ({GIORNI_LUNGHI[gg[0]]} e {GIORNI_LUNGHI[gg[1]]}): "
+                f"con le ore dichiarate da {s.doc1} non c'era modo di distanziarle di più.",
+                "2 ore di 1° strumento in giorni vicini"))
 
     def buchi_di(lezioni: list[Lezione]) -> list[tuple[int, int]]:
         per_giorno: dict[int, set[int]] = defaultdict(set)

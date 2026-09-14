@@ -56,17 +56,18 @@ programma le blocca e costruisce il resto dell'orario intorno. Al posto dello st
 LMI**: in quell'ora restano occupati il docente e tutti i ragazzi del gruppo o del laboratorio. Il docente si
 può lasciare vuoto, lo prende dal foglio Gruppi LMC o LMI.
 
-Le **2 ore di 1° strumento** (classi 1ª, 2ª e 5ª) vanno di norma in **due giorni diversi**. Per averle una di
-seguito all'altra si scrive **SI** nella colonna «1° strumento attaccato» del foglio Studenti; NO o casella
-vuota le tiene separate. Fanno eccezione le ore fissate a mano negli abbinamenti e chi ha «Giorno unico = SI».
+Le **2 ore di 1° strumento** (classi 1ª, 2ª e 5ª) vanno in **due giorni con almeno un giorno in mezzo**
+(lunedì e mercoledì, martedì e venerdì…), mai lo stesso giorno né due giorni di fila. Per averle una di
+seguito all'altra si scrive **SI** nella colonna «1° strumento attaccato» del foglio Studenti. Fanno
+eccezione le ore fissate a mano negli abbinamenti e chi ha «Giorno unico = SI»; se la disponibilità del
+docente non lascia scampo il programma le avvicina, dicendolo negli avvisi.
 
 La colonna **«Minuti per tornare a casa»** la scrive il programma con «Aggiorna trasporti»: è il tempo
 migliore fra le quattro fasce, il dettaglio ora per ora resta nel foglio Trasporti.
 
-Chi abita **lontano** salta per quanto possibile l'ultima ora e concentra le lezioni in un pomeriggio solo,
-in proporzione al viaggio: quello che conta è **a che ora arriva a casa**, non quanto dura il viaggio. Oltre
-la soglia del parametro «Soglia minuti 'tutto in un giorno'» (90 minuti) fa tutto lo stesso giorno, e per lui
-la regola delle 2 ore di 1° strumento in giorni diversi non vale.
+**Le prime ore vanno a chi abita lontano, le ultime a chi abita vicino**, in proporzione al viaggio e senza
+soglie: chi viene da fuori paga le ore tarde, chi sta a dieci minuti paga quelle presto. Conta **a che ora
+arriva a casa**, non quanto dura il viaggio.
 
 Su un file compilato con una versione precedente, **Modifica → Riallinea il formato del file** rimette le
 istruzioni aggiornate, le larghezze delle colonne e i menu a tendina, senza toccare i dati.

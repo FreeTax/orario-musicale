@@ -140,7 +140,7 @@ vanno rifatte o copiate; in futuro si può fare uno script di aggiornamento che 
 | Gruppi LMC | Gruppo, Docente, Studente 1…5, Note | vuoto, con 2 righe di esempio grigie da cancellare; i gruppi li fornisce lo zio |
 | Abbinamenti fissi | Docente, Studente (oppure «Gruppo N» di musica da camera, oppure un laboratorio del foglio LMI), Tipo di lezione, Giorno, Ora, Note | vuoto; le lezioni decise a mano, che il motore blocca |
 | LMI | Laboratorio, Classi, Docente, Aula, Giorno e ora (mattino), Studenti, Note | vuoto, con 1 riga di esempio; il programma non li calcola, li ricopia in output |
-| Parametri | Max rientri (2), max rientri chi abita vicino (3), soglia KM "vicino" (5), tempo massimo di calcolo (120 s), indirizzo della scuola, soglia minuti "vicino" (25), soglia minuti "tutto in un giorno" (90) | valori proposti; indirizzo scuola da compilare |
+| Parametri | Max rientri (2), max rientri chi abita vicino (3), soglia KM "vicino" (5), tempo massimo di calcolo (120 s), indirizzo della scuola, soglia minuti "vicino" (25) | valori proposti; indirizzo scuola da compilare |
 | Trasporti | scritto dal programma (Aggiorna trasporti): per studente, minuti/arrivo/mezzi per fascia | vuoto finché non si aggiorna |
 
 Le colonne Docente e Studente hanno menu a tendina collegati agli altri fogli, così i nomi coincidono.
@@ -391,6 +391,45 @@ sono omonimi, e negli LMI questo vale per ogni nome dell'elenco separato da virg
 dati veri: Gori Camilla di 3ª e Gori Yvaine di 5ª) la cella resta come scritta, così è chi compila a
 scegliere. La verifica dei nomi al momento del calcolo accetta entrambe le forme.
 
+**Le due ore di 1° strumento mai in giorni di fila (15/9/2026, richiesta di Francesco)**: non basta che
+siano in giorni diversi, fra una lezione e l'altra ci vuole almeno un giorno in mezzo (lunedì-mercoledì,
+martedì-venerdì…). Erano venute fuori Bonacchi lunedì-martedì e Pippi due volte lo stesso lunedì. Il vincolo
+è **cedevole** ma carissimo (`PESO_GIORNI_VICINI = 4000`, sopra il costo di spostare due lezioni in un
+ricalcolo): con la regola rigida l'orario non esisteva proprio, perché a un docente con 9 ore dichiarate e
+solo giorni vicini non resta nessuna coppia valida. Chi resta vicino finisce negli avvisi con il motivo. Le
+eccezioni sono tre: «1° strumento attaccato = SI», «Giorno unico = SI» e le ore fissate a mano.
+
+**Il pomeriggio unico solo a chi lo chiede (15/9/2026, richiesta di Francesco)**: la scorciatoia «chi abita
+oltre 90 minuti fa tutto lo stesso giorno» è stata tolta, insieme al parametro che la governava. Due lezioni
+dello stesso strumento troppo vicine non hanno senso nemmeno per chi viene da lontano; il pomeriggio unico
+resta solo a chi ha «Giorno unico = SI». Per gli altri valgono le preferenze normali, che già concentrano i
+rientri di chi viaggia molto.
+
+**Le prime ore a chi viene da lontano, le ultime a chi sta vicino (15/9/2026, richiesta di Francesco)**:
+Degl'Innocenti (49 minuti) aveva tre lezioni alla prima ora e Chen (71 minuti) tutte alle ultime. Il criterio
+c'era ma era troppo debole: scambiare un vicino e un lontano fra la prima e l'ultima fascia cambiava il
+punteggio di 120 punti, un ottavo di un buco, quindi qualsiasi altro vincolo lo travolgeva. Ora il peso della
+distanza sale da 40 a 200 e, soprattutto, è **simmetrico**: chi abita vicino paga le ore presto
+(`PESO_VICINO_PRESTO = 150 × (1 − lontananza) × ore che mancano alla fine`), non solo il lontano paga le ore
+tarde. Lo stesso scambio vale adesso circa 960 punti, appena sotto un buco: l'ordine per distanza si impone
+su tutto tranne che sui buchi. In più l'attesa fra mattino e pomeriggio pesa in proporzione alla distanza
+(× 0,3 per il più vicino invece che × 1): chi sta a dieci minuti può tornare a casa nel frattempo, e senza
+questo correttivo non lo si sarebbe mai potuto spostare sul tardi. Sui dati veri, sui tre terzi per distanza:
+
+| gruppo | ora media | lezioni alle 13:30 | lezioni alle 16:30 |
+|--------|-----------|--------------------|--------------------|
+| 25 più vicini | 1,85 | 9 | 23 |
+| 25 di mezzo | 1,35 | 19 | 13 |
+| 25 più lontani | 0,61 | 40 | 1 |
+
+Degl'Innocenti passa a 2 rientri, Chen alle 14:30 e 15:30, buchi totali 1.
+
+**Adattare invece di ricalcolare (15/9/2026)**: la casella «Parti dall'orario già calcolato» c'era già ed è
+accesa da sola quando il file contiene un orario; il peso di spostare una lezione è però sceso da 1500 a
+**800**, sotto il costo di un buco. Prima adattare l'orario alle regole nuove poteva lasciare dei vuoti pur
+di non muovere le lezioni. Sui dati veri, adattando l'orario vecchio alle regole nuove: 264 lezioni
+confermate su 283, 19 spostate, nessuna nuova.
+
 **Conta l'ora in cui arriva a casa, non la durata del viaggio (14/9/2026, dall'analisi di un output)**:
 Fiesoli, che sta a 128 minuti, si era vista mettere una lezione all'ultima ora. Guardando i suoi dati il
 motivo era chiaro: finendo alle 16:30, alle 17:30 o alle 18:30 lei arriva **sempre alle 19:38**, perché il
@@ -405,13 +444,6 @@ fascia delle 16:30, e `PESO_RIENTRO_LONTANO = 350 × lontananza` per ogni pomeri
 secondo rientro era gratis fino al massimo consentito). Restano sotto il peso di un buco, quindi non si crea
 un vuoto pur di anticipare. Sui dati veri: dei 30 studenti più lontani **uno solo** ha ancora una lezione alle
 16:30 (erano molti di più), e Fiesoli è passata da giovedì 14:30-16:30 a lunedì 13:30-15:30.
-
-**Chi viene da molto lontano fa tutto in un giorno (14/9/2026)**: la regola nuova delle 2 ore di 1° strumento
-in giorni diversi e la richiesta «i lontani tutte le lezioni lo stesso pomeriggio» si contraddicono. Vince la
-seconda sopra una soglia esplicita, il parametro **«Soglia minuti 'tutto in un giorno'»** (90 minuti di
-default, modificabile nel foglio Parametri): sopra quel viaggio la separazione non si applica e viene
-segnalato negli avvisi, ragazzo per ragazzo. Sui dati veri riguarda 17 studenti, 13 dei quali vengono un
-pomeriggio solo.
 
 **Gruppi di musica da camera negli abbinamenti fissi (14/9/2026, richiesta di Francesco)**: nella colonna
 Studente si scrive «Gruppo 5» (vanno bene anche «Gr. 5», «LMC 5» o il solo numero) e l'ora del gruppo resta
