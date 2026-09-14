@@ -12,9 +12,9 @@ from collections import Counter, defaultdict
 
 from .costanti import (
     CLASSI_LMC, FOGLIO_ABBINAMENTI, FOGLIO_DOCENTI, FOGLIO_GRUPPI, FOGLIO_LMI, FOGLIO_STUDENTI,
-    MAX_GRUPPO_LMC, MIN_GRUPPO_LMC, N_FASCE, N_ORE, ORE_PER_CLASSE, TIPO_LMC, TIPO_LMI, TIPO_STRUM1,
-    TIPO_STRUM2,
-    nome_fascia,
+    GIORNI, MAX_GRUPPO_LMC, MIN_GRUPPO_LMC, N_FASCE, N_ORE, ORE, ORE_PER_CLASSE, TIPO_LMC, TIPO_LMI,
+    TIPO_STRUM1, TIPO_STRUM2,
+    giorno_ora, nome_fascia,
 )
 from .modello import DatiInput, Problema, ProblemiError, Studente
 
@@ -209,6 +209,21 @@ def controlla(dati: DatiInput) -> list[Problema]:
     # ── Abbinamenti fissi ──
     occupati_doc: dict[tuple[str, int], str] = {}
     occupati_stud: dict[tuple[str, int], str] = {}
+    # tutte le ore già impegnate da un abbinamento, per dire dove si può spostare quello che non ci sta
+    fissate_per_doc: dict[str, set[int]] = defaultdict(set)
+    for ab in dati.abbinamenti:
+        if ab.docente and ab.fascia >= 0:
+            fissate_per_doc[ab.docente].add(ab.fascia)
+
+    def ore_ancora_libere(nome_doc: str) -> str:
+        d_doc = docenti.get(nome_doc)
+        if d_doc is None:
+            return ""
+        libere = sorted(set(d_doc.fasce_x) - fissate_per_doc[nome_doc])
+        if not libere:
+            return f" {nome_doc} non ha nessun'altra ora dichiarata libera: servono altre disponibilità."
+        elenco = ", ".join(f"{GIORNI[giorno_ora(f)[0]]} {ORE[giorno_ora(f)[1]]}" for f in libere[:10])
+        return f" Ore di {nome_doc} ancora libere: {elenco}{' …' if len(libere) > 10 else ''}."
     for ab in dati.abbinamenti:
         dove = f"{FOGLIO_ABBINAMENTI}, riga {ab.riga}"
         # al posto del ragazzo si può scrivere il nome di un laboratorio LMI: allora si fissa tutto il gruppo
@@ -253,7 +268,8 @@ def controlla(dati: DatiInput) -> list[Problema]:
                 continue
             altro = occupati_doc.get((ab.docente, ab.fascia))
             if altro:
-                err(dove, f"{ab.docente} ha già un altro abbinamento fisso {nome_fascia(ab.fascia)} ({altro}).")
+                err(dove, f"{ab.docente} ha già un altro abbinamento fisso {nome_fascia(ab.fascia)} ({altro})."
+                          + ore_ancora_libere(ab.docente))
                 continue
             gia_presi = [x.cognome.title() for x in fermi if x is not None and (x.id, ab.fascia) in occupati_stud]
             if gia_presi:
@@ -287,7 +303,13 @@ def controlla(dati: DatiInput) -> list[Problema]:
             possibili.append(TIPO_LMC)
         if ab.tipo:
             if ab.tipo not in possibili:
-                err(dove, f"{st.cognome.title()} non ha {_DESCRIZIONE_TIPO[ab.tipo]} con {ab.docente}.")
+                if possibili:
+                    spiega = (f"con {ab.docente} ha {' e '.join(_DESCRIZIONE_TIPO[t] for t in possibili)}: "
+                              "basta correggere la colonna «Tipo di lezione», o lasciarla vuota.")
+                else:
+                    spiega = (f"il suo 1° strumento è {st.strum1 or '—'} con {st.doc1 or '—'}"
+                              + (f", il 2° è {st.strum2} con {st.doc2}." if st.strum2 else "."))
+                err(dove, f"{st.cognome.title()} non ha {_DESCRIZIONE_TIPO[ab.tipo]} con {ab.docente}: {spiega}")
                 continue
         elif len(possibili) == 1:
             ab.tipo = possibili[0]
@@ -305,7 +327,8 @@ def controlla(dati: DatiInput) -> list[Problema]:
             continue
         altro = occupati_doc.get((ab.docente, ab.fascia))
         if altro:
-            err(dove, f"{ab.docente} ha già un altro abbinamento fisso {nome_fascia(ab.fascia)} ({altro}).")
+            err(dove, f"{ab.docente} ha già un altro abbinamento fisso {nome_fascia(ab.fascia)} ({altro})."
+                      + ore_ancora_libere(ab.docente))
             continue
         occupati_doc[(ab.docente, ab.fascia)] = etichetta
         altro = occupati_stud.get((st.id, ab.fascia))
