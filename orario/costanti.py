@@ -50,8 +50,13 @@ FOGLIO_GRUPPI = "Gruppi LMC"
 FOGLIO_LMI = "LMI"
 FOGLIO_PARAMETRI = "Parametri"
 FOGLIO_IMPEGNI = "Impegni studenti"  # ore in cui il ragazzo NON può esserci (al contrario dei docenti)
-FOGLI_DATI = [FOGLIO_STUDENTI, FOGLIO_IMPEGNI, FOGLIO_DOCENTI, FOGLIO_GRUPPI, FOGLIO_LMI, FOGLIO_PARAMETRI]
-FOGLI_FACOLTATIVI = {FOGLIO_IMPEGNI}   # se manca, si crea vuoto: i file di prima non ce l'hanno
+FOGLIO_ABBINAMENTI = "Abbinamenti fissi"  # lezioni già decise: docente, studente, giorno e ora
+FOGLI_DATI = [FOGLIO_STUDENTI, FOGLIO_IMPEGNI, FOGLIO_DOCENTI, FOGLIO_GRUPPI, FOGLIO_ABBINAMENTI,
+              FOGLIO_LMI, FOGLIO_PARAMETRI]
+FOGLI_FACOLTATIVI = {FOGLIO_IMPEGNI, FOGLIO_ABBINAMENTI}  # se mancano si creano vuoti: i file di prima non li hanno
+
+# Come si chiamano i tipi di lezione nel foglio degli abbinamenti
+NOMI_TIPO = {"1° strumento": "S1", "2° strumento": "S2", "Musica da camera": "LMC"}
 FOGLIO_ORARIO = "Orario calcolato"  # scritto dal programma dopo il calcolo, riusato al ricalcolo
 FOGLIO_TRASPORTI = "Trasporti"  # scritto da "Aggiorna trasporti": minuti di ritorno a casa per fascia
 

@@ -11,8 +11,8 @@ from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.datavalidation import DataValidation
 
 from .costanti import (
-    COLONNE_AULE, FASCE, FOGLIO_DOCENTI, FOGLIO_GRUPPI, FOGLIO_IMPEGNI, FOGLIO_LMI, FOGLIO_PARAMETRI,
-    FOGLIO_STUDENTI,
+    COLONNE_AULE, FASCE, FOGLIO_ABBINAMENTI, FOGLIO_DOCENTI, FOGLIO_GRUPPI, FOGLIO_IMPEGNI, FOGLIO_LMI,
+    FOGLIO_PARAMETRI, FOGLIO_STUDENTI, GIORNI, NOMI_TIPO, ORE,
 )
 
 HEAD_FILL = PatternFill("solid", fgColor="DDEBF7")
@@ -30,11 +30,13 @@ LARGHEZZE_STUDENTI = {"Classe": 7, "Cognome": 22, "Nome": 22, "Strumento 1": 15,
                       "Giorno unico (SI/NO)": 13, "Giorni NON disponibili": 17, "Comune": 20,
                       "Indirizzo": 26, "Civico": 8, "KM": 7, "Note": 30}
 COLONNE_DOCENTI = (["Docente", "Strumento/i"] + COLONNE_AULE + ["Ore accompagnamento"]
-                   + FASCE + ["Note"])
+                   + FASCE + ["Ore dichiarate", "Note"])
+RIGA_TOTALE = "TOTALE"   # ultima riga del foglio Docenti: somme, non è un docente
 COLONNE_GRUPPI = ["Gruppo", "Docente", "Studente 1", "Studente 2", "Studente 3", "Studente 4", "Studente 5", "Note"]
 COLONNE_LMI = ["Laboratorio", "Classi", "Docente", "Aula", "Giorno e ora (mattino)",
                "Studenti (Cognome Nome, separati da virgola)", "Note"]
 COLONNE_IMPEGNI = ["Classe", "Cognome", "Nome"] + FASCE + ["Note"]
+COLONNE_ABBINAMENTI = ["Docente", "Studente", "Tipo di lezione", "Giorno", "Ora", "Note"]
 COLONNE_PARAMETRI = ["Parametro", "Valore", "Spiegazione"]
 PARAMETRI_DEFAULT = [
     ("Max rientri per ragazzo", 2, "Numero massimo di pomeriggi a settimana (di norma). Chi abita vicino può arrivare al valore sotto."),
@@ -79,6 +81,10 @@ ISTRUZIONI = [
     "  ATTENZIONE: qui è al contrario del foglio Docenti. La X segna l'ora in cui il ragazzo NON c'è.",
     "  Chi non ha impegni si lascia con la riga vuota. Nel programma il pulsante 'Compila dagli studenti'",
     "  ricopia l'elenco dei nomi dal foglio Studenti.",
+    "",
+    "FOGLIO 'Abbinamenti fissi' – lezioni già decise, che il programma deve rispettare così come sono.",
+    "  Una riga per lezione: docente, studente, tipo (1° strumento, 2° strumento, musica da camera), giorno e ora.",
+    "  Il tipo si può lasciare vuoto: viene dedotto dal docente. Serve per bloccare gli incastri già concordati.",
     "",
     "FOGLIO 'LMI' – laboratori di musica d'insieme (2 ore, orario del MATTINO). Un rigo per laboratorio.",
     "  Il programma NON li calcola: li ricopia così come sono in una pagina dell'orario.",
@@ -131,6 +137,8 @@ def costruisci_workbook(studenti: Iterable[dict] = (), docenti: Iterable[dict] =
     for r, testo in enumerate(ISTRUZIONI, start=1):
         if testo.startswith("FOGLIO") or testo.startswith("REGOLE"):
             ws.cell(row=r, column=1).font = BOLD
+
+    col_cognome = get_column_letter(COLONNE_STUDENTI.index("Cognome") + 1)
 
     # Studenti
     ws = wb.create_sheet(FOGLIO_STUDENTI)
@@ -214,7 +222,7 @@ def costruisci_workbook(studenti: Iterable[dict] = (), docenti: Iterable[dict] =
     cold = {nome: i for i, nome in enumerate(COLONNE_DOCENTI, start=1)}
     prima_fascia = cold[FASCE[0]]
     larg = {cold["Docente"]: 18, cold["Strumento/i"]: 22, cold["Ore accompagnamento"]: 12,
-            len(COLONNE_DOCENTI): 30}
+            cold["Ore dichiarate"]: 10, len(COLONNE_DOCENTI): 30}
     for nome in COLONNE_AULE:
         larg[cold[nome]] = 9
     for i in range(prima_fascia, prima_fascia + len(FASCE)):
@@ -227,13 +235,13 @@ def costruisci_workbook(studenti: Iterable[dict] = (), docenti: Iterable[dict] =
     for d in docenti:
         aule = d.get("aule") or [d.get("aula", "")] * len(COLONNE_AULE)
         ws.append([d["nome"], d.get("strumenti", "")] + list(aule)[:len(COLONNE_AULE)]
-                  + [d.get("ore_accomp", 0)] + [""] * len(FASCE) + [d.get("note", "")])
+                  + [d.get("ore_accomp", 0)] + [""] * len(FASCE) + ["", d.get("note", "")])
         if d.get("note"):
             ws.cell(row=ws.max_row, column=1).fill = WARN_FILL
     if not docenti and esempi:
-        ws.append(["Bianchi", "PIANOFORTE"] + ["M1"] * 5 + [2] + ["X"] * 8 + [""] * 12 + [ESEMPIO])
+        ws.append(["Bianchi", "PIANOFORTE"] + ["M1"] * 5 + [2] + ["X"] * 8 + [""] * 12 + ["", ESEMPIO])
         ws.append(["Verdi", "VIOLINO, CANTO", "M2", "M2", "M3", "M3", "M2", 0]
-                  + [""] * 4 + ["X"] * 12 + [""] * 4 + [ESEMPIO])
+                  + [""] * 4 + ["X"] * 12 + [""] * 4 + ["", ESEMPIO])
         _grigia(ws, 2, len(COLONNE_DOCENTI))
         _grigia(ws, 3, len(COLONNE_DOCENTI))
     dv = DataValidation(type="list", formula1='"X,A"', allow_blank=True)
@@ -253,11 +261,27 @@ def costruisci_workbook(studenti: Iterable[dict] = (), docenti: Iterable[dict] =
     dv = DataValidation(type="list", formula1="=Docenti!$A$2:$A$80", allow_blank=True)
     ws.add_data_validation(dv)
     dv.add("B2:B120")
-    col_cognome = get_column_letter(COLONNE_STUDENTI.index("Cognome") + 1)
     dv = DataValidation(type="list", formula1=f"=Studenti!${col_cognome}$2:${col_cognome}${n_stud + 200}",
                         allow_blank=True)
     ws.add_data_validation(dv)
     dv.add("C2:G120")
+
+    # Abbinamenti fissi: lezioni già decise, che il programma deve rispettare
+    ws = wb.create_sheet(FOGLIO_ABBINAMENTI)
+    _intesta(ws, COLONNE_ABBINAMENTI, {1: 20, 2: 26, 3: 18, 4: 12, 5: 10, 6: 40})
+    if esempi:
+        ws.append(["Verdi", "Neri Anna", "2° strumento", "Mercoledì", "14:30", ESEMPIO])
+        _grigia(ws, 2, len(COLONNE_ABBINAMENTI))
+    fondo_ab = max(ws.max_row, 2) + 200
+    for colonna, valori in (("A", "=Docenti!$A$2:$A$80"),
+                            ("B", f"=Studenti!${col_cognome}$2:${col_cognome}${n_stud + 200}")):
+        dv = DataValidation(type="list", formula1=valori, allow_blank=True)
+        ws.add_data_validation(dv)
+        dv.add(f"{colonna}2:{colonna}{fondo_ab}")
+    for colonna, valori in (("C", list(NOMI_TIPO)), ("D", list(GIORNI)), ("E", list(ORE))):
+        dv = DataValidation(type="list", formula1='"' + ",".join(valori) + '"', allow_blank=True)
+        ws.add_data_validation(dv)
+        dv.add(f"{colonna}2:{colonna}{fondo_ab}")
 
     # LMI
     ws = wb.create_sheet(FOGLIO_LMI)

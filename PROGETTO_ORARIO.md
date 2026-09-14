@@ -135,13 +135,17 @@ vanno rifatte o copiate; in futuro si può fare uno script di aggiornamento che 
 |--------|-----------|-----------------------|
 | Istruzioni | Come compilare | completo |
 | Studenti | Classe, Cognome, Nome, Comune, Indirizzo, Civico, KM, Strumento 1, Docente 1, Strumento 2, Docente 2, Ore consecutive (SI/NO), Giorno unico (SI/NO), Giorni NON disponibili, Note | 109 ragazzi; 81 con KM; le celle da completare sono **gialle** |
-| Docenti | Docente, Strumento/i, Aula, **Ore accompagnamento** (numero), 20 colonne Lun 13:30 … Ven 16:30 (X = disponibile, vuoto = no, A = ora di accompagnamento fissata a mano), Note | 21 docenti; aule dell'anno scorso; disponibilità **vuote** |
+| Impegni studenti | Classe, Cognome, Nome + 20 colonne Lun 13:30 … Ven 16:30 (X = il ragazzo **non** può esserci), Note | vuoto; il pulsante «Copia i nomi dagli studenti» lo riempie |
+| Docenti | Docente, Strumento/i, **5 aule** (una per giorno), **Ore accompagnamento** (numero), 20 colonne Lun 13:30 … Ven 16:30 (X = disponibile, vuoto = no, A = ora di accompagnamento fissata a mano), **Ore dichiarate**, Note; in fondo la riga **TOTALE** | 21 docenti; aule dell'anno scorso; disponibilità **vuote** |
 | Gruppi LMC | Gruppo, Docente, Studente 1…5, Note | vuoto, con 2 righe di esempio grigie da cancellare; i gruppi li fornisce lo zio |
+| Abbinamenti fissi | Docente, Studente, Tipo di lezione, Giorno, Ora, Note | vuoto; le lezioni decise a mano, che il motore blocca |
 | LMI | Laboratorio, Classi, Docente, Aula, Giorno e ora (mattino), Studenti, Note | vuoto, con 1 riga di esempio; il programma non li calcola, li ricopia in output |
 | Parametri | Max rientri (2), max rientri chi abita vicino (3), soglia KM "vicino" (5), tempo massimo di calcolo (120 s), indirizzo della scuola, soglia minuti "vicino" (25) | valori proposti; indirizzo scuola da compilare |
 | Trasporti | scritto dal programma (Aggiorna trasporti): per studente, minuti/arrivo/mezzi per fascia | vuoto finché non si aggiorna |
 
 Le colonne Docente e Studente hanno menu a tendina collegati agli altri fogli, così i nomi coincidono.
+I fogli aggiunti dopo (Impegni studenti, Abbinamenti fissi) mancano nei file più vecchi: all'apertura il
+programma se ne accorge e propone di aggiornarli, vedi «Aggiornamento dei file delle versioni precedenti».
 
 ---
 
@@ -386,6 +390,26 @@ i ragazzi (si può anche digitare); scrivendo solo il cognome, il nome viene agg
 sono omonimi, e negli LMI questo vale per ogni nome dell'elenco separato da virgole. Con gli omonimi (nei
 dati veri: Gori Camilla di 3ª e Gori Yvaine di 5ª) la cella resta come scritta, così è chi compila a
 scegliere. La verifica dei nomi al momento del calcolo accetta entrambe le forme.
+
+**Foglio «Abbinamenti fissi» (14/9/2026, richiesta di Francesco)**: la tabella dove si decidono a mano le
+lezioni già fissate — docente, studente, tipo di lezione, giorno, ora, note. Il motore le blocca prima di
+tutto il resto (`_blocca_abbinamenti`) e costruisce l'orario intorno. Le colonne Docente, Studente, Tipo di
+lezione, Giorno e Ora hanno il menu a tendina con i valori possibili, e lo studente si può scrivere col solo
+cognome come nei gruppi. Se un abbinamento è impossibile (docente non disponibile a quell'ora, studente
+impegnato, due lezioni sulla stessa cella) il calcolo si ferma e lo dice.
+
+**Somma delle ore in fondo alle disponibilità (14/9/2026, richiesta di Francesco)**: il foglio Docenti ha una
+colonna «Ore dichiarate» (le X della riga) e in fondo una riga **TOTALE** con la somma per ogni fascia e il
+totale generale. Si aggiornano da sole a ogni salvataggio e col pulsante «Aggiorna totali»; la riga TOTALE non
+viene letta come un docente e resta sempre una sola.
+
+**Aggiornamento dei file delle versioni precedenti (14/9/2026, richiesta di Francesco)**: aprendo un file
+creato con una versione più vecchia, `aggiorna_struttura` lo porta alla struttura corrente — aggiunge i fogli
+mancanti (Impegni studenti, Abbinamenti fissi…) nella posizione giusta, le colonne mancanti in coda a ogni
+foglio (per esempio le 5 aule al posto dell'aula unica, o «Ore dichiarate») e le righe di parametro nuove,
+senza toccare i dati già scritti. Prima di modificare fa una copia «… - prima dell'aggiornamento.xlsx» e alla
+fine elenca che cosa ha cambiato. Il confronto dei titoli di colonna è esatto a meno delle parentesi tipo
+«(SI/NO)»: con il confronto per prefisso «Ore dichiarate» veniva scambiata per «Ore accompagnamento».
 
 **Riepilogo delle approssimazioni prima del calcolo (14/9/2026, richiesta di Francesco)**: premendo
 Calcola il programma esegue subito i controlli e, se ha dovuto dare qualcosa per buono, apre una finestra

@@ -21,12 +21,12 @@ from openpyxl.utils import get_column_letter
 from tksheet import Sheet
 
 from .costanti import (
-    ETICHETTA_ACCOMP, FOGLI_DATI, FOGLIO_DOCENTI, FOGLIO_GRUPPI, FOGLIO_IMPEGNI, FOGLIO_LMI,
-    FOGLIO_STUDENTI, GIORNI_LUNGHI,
+    ETICHETTA_ACCOMP, FOGLI_DATI, FOGLIO_ABBINAMENTI, FOGLIO_DOCENTI, FOGLIO_GRUPPI, FOGLIO_IMPEGNI,
+    FOGLIO_LMI, FOGLIO_STUDENTI, GIORNI_LUNGHI, NOMI_TIPO, ORE,
     N_ORE, ORE, ORE_FINE, ORE_LABEL, TIPO_ACCOMP, TIPO_LMC, TIPO_STRUM1, fascia,
 )
 from .lettura import (
-    Tabella, aggiorna_struttura, applica_trasporti, costruisci_dati, leggi_orario_precedente, leggi_tabelle, leggi_trasporti,
+    Tabella, aggiorna_struttura, aggiorna_totali_docenti, applica_trasporti, costruisci_dati, leggi_orario_precedente, leggi_tabelle, leggi_trasporti,
     salva_orario_nel_file, salva_tabelle, salva_trasporti,
 )
 from .modello import Orario, Problema, ProblemiError
@@ -115,7 +115,7 @@ class App(ctk.CTk):
         self._calcola_dopo_trasporti = False
         self._sto_sistemando = False
         self.modificato = False
-        self._elenco_suggerito: list[str] = []
+        self._elenco_suggerito: tuple = ()
 
         self.ultima_cartella_risultati: Path | None = None
         imp = _carica_impostazioni()
@@ -307,8 +307,14 @@ class App(ctk.CTk):
         self.schermata_dati = self._crea_dati()
         self.schermata_dati.pack(fill="both", expand=True)
         if modifiche:
-            self.lbl_stato.configure(text=f"File di una versione precedente: aggiunte {len(modifiche)} colonne/righe "
-                                          "(Comune, Indirizzo, Civico, parametri trasporti). Premi Salva per tenerle.")
+            self.lbl_stato.configure(text=f"File aggiornato alla versione nuova: {len(modifiche)} aggiunte. "
+                                          "Premi Salva per tenerle.")
+            FinestraTesto(self, "File di una versione precedente",
+                          "Il programma ha aggiornato la struttura del file senza toccare i dati:\n\n"
+                          + "\n".join(f"   • {m}" for m in modifiche)
+                          + "\n\nLe aggiunte diventano definitive quando premi Salva.",
+                          sottotitolo=f"{len(modifiche)} aggiunte: fogli e colonne introdotti dopo che "
+                                      "questo file era stato creato")
 
     # ── Schermata 2: dati ──
     def _crea_dati(self) -> ctk.CTkFrame:
@@ -383,7 +389,7 @@ class App(ctk.CTk):
     def _cambio_scheda(self) -> None:
         """Aprendo la scheda dei gruppi si aggiorna l'elenco dei nomi suggeriti."""
         try:
-            if self.tabs.get() == FOGLIO_GRUPPI:
+            if self.tabs.get() in (FOGLIO_GRUPPI, FOGLIO_ABBINAMENTI, FOGLIO_LMI):
                 self._aggiorna_suggerimenti()
         except Exception:
             pass
@@ -414,6 +420,9 @@ class App(ctk.CTk):
             ctk.CTkButton(comandi, text="👥  Compila dagli studenti", width=200, height=28,
                           fg_color="#3a6ea5", hover_color="#2f5a86",
                           command=self.compila_docenti).pack(side="left", padx=(6, 0))
+            ctk.CTkButton(comandi, text="Σ  Aggiorna i totali", width=160, height=28, fg_color="gray70",
+                          text_color="black", hover_color="gray60",
+                          command=self.aggiorna_totali).pack(side="left", padx=(6, 0))
         if nome == FOGLIO_IMPEGNI:
             ctk.CTkButton(comandi, text="👥  Copia i nomi dagli studenti", width=220, height=28,
                           fg_color="#3a6ea5", hover_color="#2f5a86",
@@ -424,6 +433,8 @@ class App(ctk.CTk):
             FOGLIO_DOCENTI: "X nelle ore disponibili, A nelle ore di accompagnamento fissate, vuoto se non disponibile.",
             FOGLIO_IMPEGNI: "Al contrario dei docenti: la X segna l'ora in cui il ragazzo NON può venire. "
                             "Chi non ha impegni si lascia vuoto.",
+            FOGLIO_ABBINAMENTI: "Lezioni già decise che il programma deve rispettare. "
+                                "Il tipo si può lasciare vuoto: lo deduce dal docente.",
         }.get(nome, "Si lavora come in Excel: copia e incolla, Invio scende, Tab va a destra, tasto destro per le righe.")
         ctk.CTkLabel(comandi, text=suggerimento, text_color="gray45").pack(side="left", padx=16)
 
@@ -484,7 +495,7 @@ class App(ctk.CTk):
     def _cella_modificata(self, nome: str, evento) -> None:
         """Fine modifica di una cella: segna il file come da salvare e completa il nome scritto."""
         self._foglio_modificato(nome)
-        if nome not in (FOGLIO_GRUPPI, FOGLIO_LMI):
+        if nome not in (FOGLIO_GRUPPI, FOGLIO_LMI, FOGLIO_ABBINAMENTI):
             return
         r = getattr(evento, "row", None)
         c = getattr(evento, "column", None)
@@ -545,29 +556,50 @@ class App(ctk.CTk):
                 return nomi[0]
         return t
 
+    def _elenco_docenti(self) -> list[str]:
+        try:
+            td = self.tabelle_correnti()[FOGLIO_DOCENTI]
+        except Exception:
+            return []
+        return sorted({td.valore(r, "Docente").strip() for r in td.righe if td.valore(r, "Docente").strip()})
+
     def _aggiorna_suggerimenti(self) -> None:
-        """Menu a tendina con "Cognome Nome" sulle colonne degli studenti dei gruppi.
+        """Menu a tendina sui fogli che nominano studenti, docenti, giorni e ore.
 
         Il menu è solo un suggerimento: `edit_data=False` perché altrimenti la libreria
-        scriverebbe il primo nome dell'elenco in tutte le celle.
+        scriverebbe il primo valore dell'elenco in tutte le celle.
         """
-        sheet = self.fogli.get(FOGLIO_GRUPPI)
-        if sheet is None or not sheet.winfo_exists():
-            return
         elenco, _ = self._elenco_studenti()
-        if not elenco or elenco == self._elenco_suggerito:
+        docenti = self._elenco_docenti()
+        if not elenco and not docenti:
             return
+        chiave = (tuple(elenco), tuple(docenti))
+        if chiave == self._elenco_suggerito:
+            return
+        # foglio → (inizio del nome della colonna, valori suggeriti)
+        da_fare = {
+            FOGLIO_GRUPPI: [("studente", elenco), ("docente", docenti)],
+            FOGLIO_ABBINAMENTI: [("studente", elenco), ("docente", docenti),
+                                 ("tipo", list(NOMI_TIPO)), ("giorno", list(GIORNI_LUNGHI)),
+                                 ("ora", list(ORE))],
+            FOGLIO_LMI: [("docente", docenti)],
+        }
         try:
-            intest = self.tabelle[FOGLIO_GRUPPI].intestazione
-            colonne = [i for i, h in enumerate(intest) if h.strip().lower().startswith("studente")]
-            if not colonne:
-                return
-            for c in colonne:  # opzione di colonna: più leggera di una per ogni cella
-                lettera = get_column_letter(c + 1)
-                sheet.dropdown(f"{lettera}:{lettera}", values=elenco, state="normal",
-                               validate_input=False, edit_data=False, redraw=False)
-            sheet.redraw()
-            self._elenco_suggerito = elenco
+            for nome_foglio, regole in da_fare.items():
+                sheet = self.fogli.get(nome_foglio)
+                if sheet is None or not sheet.winfo_exists():
+                    continue
+                intest = self.tabelle[nome_foglio].intestazione
+                for prefisso, valori in regole:
+                    if not valori:
+                        continue
+                    for c, h in enumerate(intest):
+                        if h.strip().lower().startswith(prefisso):
+                            lettera = get_column_letter(c + 1)
+                            sheet.dropdown(f"{lettera}:{lettera}", values=valori, state="normal",
+                                           validate_input=False, edit_data=False, redraw=False)
+                sheet.redraw()
+            self._elenco_suggerito = chiave
         except Exception:
             pass
 
@@ -583,9 +615,10 @@ class App(ctk.CTk):
         if colonna >= len(intest):
             return
         titolo = intest[colonna].strip().lower()
-        if nome_foglio == FOGLIO_GRUPPI and not titolo.startswith("studente"):
-            return
-        if nome_foglio == FOGLIO_LMI and not titolo.startswith("studenti"):
+        if nome_foglio == FOGLIO_LMI:
+            if not titolo.startswith("studenti"):
+                return
+        elif not titolo.startswith("studente"):
             return
         _, per_cognome = self._elenco_studenti()
         if not per_cognome:
@@ -606,6 +639,21 @@ class App(ctk.CTk):
             pass
         finally:
             self._sto_sistemando = False
+
+    def aggiorna_totali(self) -> None:
+        """Ricalcola la colonna «Ore dichiarate» e la riga TOTALE del foglio Docenti."""
+        if not self._con_file():
+            return
+        tabelle = self.tabelle_correnti()
+        aggiorna_totali_docenti(tabelle)
+        sheet = self.fogli[FOGLIO_DOCENTI]
+        sheet.set_sheet_data([list(r) for r in tabelle[FOGLIO_DOCENTI].righe], redraw=True)
+        self._adatta_colonne(sheet, FOGLIO_DOCENTI)
+        self._riga_libera_in_fondo(FOGLIO_DOCENTI)
+        self.modificato = True
+        td = tabelle[FOGLIO_DOCENTI]
+        totale = td.righe[-1][td.colonna("Ore dichiarate")] if td.righe else "0"
+        self.lbl_stato.configure(text=f"Totali aggiornati: {totale} ore dichiarate in tutto")
 
     def compila_docenti(self) -> None:
         """Riempie il foglio Docenti con i nomi che compaiono negli studenti e nei gruppi.
@@ -768,7 +816,11 @@ class App(ctk.CTk):
         assert self.percorso is not None
         try:
             self.tabelle = self.tabelle_correnti()
+            aggiorna_totali_docenti(self.tabelle)
             salva_tabelle(self.percorso, self.tabelle)
+            sheet_doc = self.fogli.get(FOGLIO_DOCENTI)
+            if sheet_doc is not None and sheet_doc.winfo_exists():
+                sheet_doc.set_sheet_data([list(r) for r in self.tabelle[FOGLIO_DOCENTI].righe], redraw=True)
         except PermissionError:
             self.mostra_problemi([Problema("errore", self.percorso.name,
                                            "Il file è aperto in Excel: chiuderlo e salvare di nuovo.")], "Salvataggio non riuscito")

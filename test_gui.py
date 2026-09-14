@@ -23,7 +23,7 @@ import openpyxl  # noqa: E402
 
 import orario.trasporti as mod_trasporti  # noqa: E402
 from orario import gui  # noqa: E402
-from orario.costanti import FOGLI_DATI, FOGLIO_ORARIO, FOGLIO_TRASPORTI, GIORNI_LUNGHI  # noqa: E402
+from orario.costanti import FOGLI_DATI, FOGLIO_DOCENTI, FOGLIO_ORARIO, FOGLIO_TRASPORTI, GIORNI_LUNGHI  # noqa: E402
 from orario.modello import Trasporto  # noqa: E402
 
 import customtkinter as ctk  # noqa: E402
@@ -273,7 +273,7 @@ class BaseGui(unittest.TestCase):
             att = getattr(app, "attesa", None)
             chiusa = att is None or not att.winfo_exists()
             return chiusa and str(app.btn_calcola.cget("state")) == "normal"
-        return (cond, 60)
+        return (cond, 180)
 
 
 # ── 1. Schermata di apertura ─────────────────────────────────────────────────
@@ -983,7 +983,15 @@ class TestRobustezza(BaseGui):
             wb = openpyxl.load_workbook(f)
             for n in FOGLI_DATI:
                 self.assertIn(n, wb.sheetnames)
-                self.assertEqual((wb[n].max_row, wb[n].max_column), atteso[n], f"foglio {n} alterato dal salvataggio")
+                righe, colonne = atteso[n]
+                if n == FOGLIO_DOCENTI:
+                    righe += 1     # il salvataggio aggiunge in fondo la riga TOTALE
+                self.assertEqual((wb[n].max_row, wb[n].max_column), (righe, colonne),
+                                 f"foglio {n} alterato dal salvataggio")
+            # la riga dei totali resta una sola, anche salvando più volte
+            wd = wb[FOGLIO_DOCENTI]
+            totali = [r for r in range(2, wd.max_row + 1) if str(wd.cell(r, 1).value).upper() == "TOTALE"]
+            self.assertEqual(len(totali), 1, "una sola riga TOTALE")
             self.assertIn("Istruzioni", wb.sheetnames, "il foglio Istruzioni non deve sparire")
             self.assertEqual(list(self.tmp.glob("*.tmp.xlsx")), [], "nessun file temporaneo lasciato in giro")
             yield

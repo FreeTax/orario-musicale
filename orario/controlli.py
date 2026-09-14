@@ -11,10 +11,15 @@ import difflib
 from collections import Counter, defaultdict
 
 from .costanti import (
-    CLASSI_LMC, FOGLIO_DOCENTI, FOGLIO_GRUPPI, FOGLIO_LMI, FOGLIO_STUDENTI,
-    MAX_GRUPPO_LMC, MIN_GRUPPO_LMC, N_FASCE, N_ORE, ORE_PER_CLASSE, nome_fascia,
+    CLASSI_LMC, FOGLIO_ABBINAMENTI, FOGLIO_DOCENTI, FOGLIO_GRUPPI, FOGLIO_LMI, FOGLIO_STUDENTI,
+    MAX_GRUPPO_LMC, MIN_GRUPPO_LMC, N_FASCE, N_ORE, ORE_PER_CLASSE, TIPO_LMC, TIPO_STRUM1, TIPO_STRUM2,
+    nome_fascia,
 )
 from .modello import DatiInput, Problema, ProblemiError, Studente
+
+
+_DESCRIZIONE_TIPO = {TIPO_STRUM1: "l'ora di 1° strumento", TIPO_STRUM2: "l'ora di 2° strumento",
+                     TIPO_LMC: "la musica da camera"}
 
 
 def _norm(s: str) -> str:
@@ -196,6 +201,69 @@ def controlla(dati: DatiInput) -> list[Problema]:
             err(dove, f"Non è in nessun gruppo di musica da camera (foglio {FOGLIO_GRUPPI}).")
         elif len(gr) > 1:
             err(dove, f"È in più gruppi di musica da camera ({', '.join(map(str, gr))}): deve stare in uno solo.")
+
+    # ── Abbinamenti fissi ──
+    occupati_doc: dict[tuple[str, int], str] = {}
+    occupati_stud: dict[tuple[str, int], str] = {}
+    for ab in dati.abbinamenti:
+        dove = f"{FOGLIO_ABBINAMENTI}, riga {ab.riga}"
+        etichetta = f"{ab.docente or '?'} con {ab.studente_raw or '?'} {nome_fascia(ab.fascia)}"
+        if not ab.docente:
+            err(dove, "Manca il docente.")
+            continue
+        if ab.docente not in docenti:
+            err(dove, f"Il docente '{ab.docente}' non è nel foglio {FOGLIO_DOCENTI}.")
+            continue
+        st, motivo = risolvi_studente(ab.studente_raw, dati.studenti)
+        if st is None:
+            err(dove, f"Studente '{ab.studente_raw}': {motivo}.")
+            continue
+        if motivo:
+            avv(dove, motivo + ": conviene correggere il nome nel foglio.", "nomi riconosciuti per somiglianza")
+        ab.studente = st.id
+        # tipo di lezione: se non è scritto lo deduco dal docente
+        gruppo = dati.gruppo_di(st.id)
+        possibili = []
+        if st.doc1 == ab.docente and st.ore[0]:
+            possibili.append(TIPO_STRUM1)
+        if st.doc2 == ab.docente and st.ore[1]:
+            possibili.append(TIPO_STRUM2)
+        if gruppo is not None and gruppo.docente == ab.docente:
+            possibili.append(TIPO_LMC)
+        if ab.tipo:
+            if ab.tipo not in possibili:
+                err(dove, f"{st.cognome.title()} non ha {_DESCRIZIONE_TIPO[ab.tipo]} con {ab.docente}.")
+                continue
+        elif len(possibili) == 1:
+            ab.tipo = possibili[0]
+        elif not possibili:
+            err(dove, f"{st.cognome.title()} non ha nessuna lezione con {ab.docente}: "
+                      "controllare docente e studente.")
+            continue
+        else:
+            err(dove, f"{st.cognome.title()} ha più lezioni con {ab.docente} "
+                      f"({', '.join(_DESCRIZIONE_TIPO[t] for t in possibili)}): indicare il tipo di lezione.")
+            continue
+        if not st.libero(ab.fascia):
+            err(dove, f"{st.cognome.title()} non può esserci {nome_fascia(ab.fascia)}: "
+                      "quell'ora è fra i suoi impegni o in un giorno che ha escluso.")
+            continue
+        altro = occupati_doc.get((ab.docente, ab.fascia))
+        if altro:
+            err(dove, f"{ab.docente} ha già un altro abbinamento fisso {nome_fascia(ab.fascia)} ({altro}).")
+            continue
+        occupati_doc[(ab.docente, ab.fascia)] = etichetta
+        altro = occupati_stud.get((st.id, ab.fascia))
+        if altro and ab.tipo != TIPO_LMC:
+            err(dove, f"{st.cognome.title()} ha già un altro abbinamento fisso {nome_fascia(ab.fascia)} ({altro}).")
+            continue
+        occupati_stud[(st.id, ab.fascia)] = etichetta
+        d_ab = docenti[ab.docente]
+        if d_ab.disponibilita.get(ab.fascia) != "X":
+            d_ab.disponibilita[ab.fascia] = "X"
+            avv(dove, f"{ab.docente} non era dichiarato disponibile {nome_fascia(ab.fascia)}: "
+                      "l'ora è stata aperta perché l'abbinamento è fisso.",
+                "ore aperte per rispettare un abbinamento fisso")
 
     # ── Docenti: ore richieste vs disponibilità ──
     # a chi non bastano le fasce dichiarate se ne aprono quante ne servono, segnalandolo

@@ -12,7 +12,9 @@ Apri file Excel  →  correggi nelle griglie  →  Calcola orario  →  Excel + 
 ```
 
 1. Si apre il programma e si sceglie **Apri file Excel** oppure **Nuovo file**.
-2. I sei fogli del file appaiono come griglie modificabili: Studenti, Docenti, Gruppi LMC, LMI, Parametri.
+2. I fogli del file appaiono come griglie modificabili: Studenti, Impegni studenti, Docenti, Gruppi LMC,
+   Abbinamenti fissi, LMI, Parametri. Se il file è stato creato con una versione precedente, il programma
+   propone di aggiornarlo alla struttura nuova (fogli e colonne mancanti), dopo averne fatto una copia.
 3. **Calcola orario** chiede dove salvare e crea una cartella con la data, contenente:
    - `orario.xlsx` — un foglio per giorno (colonne = docenti con aula, righe = le 4 fasce), più i fogli
      Studenti, Docenti, Controlli e LMI
@@ -42,7 +44,14 @@ tendina che li suggerisce e il nome aggiunto da solo quando il cognome è di uno
 
 Nel foglio Docenti il pulsante **Compila dagli studenti** aggiunge da solo i docenti che compaiono negli
 elenchi degli studenti e nei gruppi, con i loro strumenti. Ogni docente ha **un'aula per giorno**, quindi può
-cambiare stanza durante la settimana.
+cambiare stanza durante la settimana. La colonna **Ore dichiarate** e la riga **TOTALE** in fondo contano da
+sole le ore segnate con la X.
+
+Nel foglio **Impegni studenti** la X vuol dire il contrario che nei docenti: l'ora in cui il ragazzo **non**
+può esserci (sport, catechismo…). Il pulsante **Copia i nomi dagli studenti** riempie l'elenco.
+
+Nel foglio **Abbinamenti fissi** si scrivono le lezioni già decise (docente, studente, tipo, giorno, ora): il
+programma le blocca e costruisce il resto dell'orario intorno.
 
 **Non derogabile**: lezioni solo dove il docente è disponibile; un docente e un ragazzo mai in due posti
 nella stessa ora; tutti i membri di un gruppo di musica da camera nella stessa ora; giorni vietati per

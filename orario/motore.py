@@ -93,6 +93,48 @@ def _raggruppa(unita: list[_Unita]) -> list[tuple[_Unita, int]]:
     return [(prima[k], conta[k]) for k in prima]
 
 
+def _blocca_abbinamenti(dati: DatiInput, unita: list[_Unita]) -> None:
+    """Fissa nella loro fascia le lezioni già decise nel foglio degli abbinamenti.
+
+    Restringe il dominio dell'unità a quella sola fascia; se un ragazzo ha due ore dello stesso
+    tipo con lo stesso docente, si blocca la prima ancora libera.
+    """
+    bloccate: set[int] = set()
+    problemi: list[Problema] = []
+    for ab in dati.abbinamenti:
+        if not ab.studente or not ab.tipo or ab.fascia < 0:
+            continue
+        candidate = [u for u in unita
+                     if u.idx not in bloccate and u.tipo == ab.tipo and u.docente == ab.docente
+                     and ab.studente in u.studenti and not u.seconda]
+        if not candidate:
+            problemi.append(Problema(
+                "errore", f"Abbinamenti fissi, riga {ab.riga}",
+                f"non resta nessuna lezione da fissare per {ab.studente.title()} con {ab.docente}: "
+                "forse ci sono più abbinamenti dello stesso tipo di quante sono le sue ore."))
+            continue
+        u = candidate[0]
+        fasce = [ab.fascia] if ab.fascia in u.fasce else []
+        if u.seguente is not None:  # 2 ore consecutive: serve anche la fascia dopo
+            seconda = next(v for v in unita if v.idx == u.seguente)
+            if ab.fascia + 1 not in seconda.fasce or giorno_ora(ab.fascia)[1] == N_ORE - 1:
+                fasce = []
+        if not fasce:
+            problemi.append(Problema(
+                "errore", f"Abbinamenti fissi, riga {ab.riga}",
+                f"{ab.studente.title()} con {ab.docente} {nome_fascia(ab.fascia)} non è possibile: "
+                "il docente non è libero in quell'ora, oppure servono due ore consecutive che non ci stanno."))
+            continue
+        u.fasce = fasce
+        bloccate.add(u.idx)
+        if u.seguente is not None:
+            seconda = next(v for v in unita if v.idx == u.seguente)
+            seconda.fasce = [ab.fascia + 1]
+            bloccate.add(seconda.idx)
+    if problemi:
+        raise ProblemiError(problemi)
+
+
 def _crea_unita(dati: DatiInput) -> list[_Unita]:
     docenti = {d.nome: d for d in dati.docenti}
     studenti = {s.id: s for s in dati.studenti}
@@ -478,6 +520,7 @@ def calcola(dati: DatiInput, progresso: Callable[[str], None] | None = None,
 
     progresso("Costruzione del modello…")
     unita = _crea_unita(dati)
+    _blocca_abbinamenti(dati, unita)
 
     # unità senza nessuna fascia possibile: inutile far partire il calcolo
     vuote = [u for u in unita if not u.fasce]
@@ -630,6 +673,15 @@ def _verifica(dati: DatiInput, unita: list[_Unita], lezioni: list[Lezione]) -> N
                 errore(f"{_etichetta(st)} ha lezione di {_giorno(l.giorno)}, giorno non disponibile.")
             elif l.fascia in st.fasce_non_disp:
                 errore(f"{_etichetta(st)} ha lezione {nome_fascia(l.fascia)}, ora in cui ha un impegno.")
+    # abbinamenti fissi rispettati
+    for ab in dati.abbinamenti:
+        if not ab.studente or ab.fascia < 0:
+            continue
+        if not any(l.fascia == ab.fascia and l.docente == ab.docente and ab.studente in l.studenti
+                   for l in lezioni):
+            errore(f"l'abbinamento fisso {ab.studente.title()} con {ab.docente} "
+                   f"{nome_fascia(ab.fascia)} non è stato rispettato.")
+
     # A rispettate, numero ACCOMP, accompagnamento in coda alle lezioni della giornata
     for d in dati.docenti:
         acc = [l for l in lezioni if l.docente == d.nome and l.tipo == TIPO_ACCOMP]

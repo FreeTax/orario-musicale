@@ -25,7 +25,7 @@ from openpyxl import load_workbook
 
 from orario import controlli, lettura, motore, template, trasporti
 from orario.costanti import (
-    FOGLI_DATI, FOGLIO_IMPEGNI,
+    FOGLI_DATI, FOGLIO_ABBINAMENTI, FOGLIO_IMPEGNI,
     COLONNE_AULE,
     FASCE, FOGLIO_DOCENTI, FOGLIO_GRUPPI, FOGLIO_LMI, FOGLIO_PARAMETRI, FOGLIO_STUDENTI,
     FOGLIO_TRASPORTI, GIORNI, MINUTI_SENZA_MEZZO, N_GIORNI, N_ORE, ORE, TIPO_ACCOMP, TIPO_LMC,
@@ -35,7 +35,8 @@ from orario.export import esporta_tutto
 from orario.lettura import Tabella
 from orario.modello import DatiInput, GruppoLMC, Parametri, ProblemiError, Trasporto
 from orario.template import (
-    COLONNE_DOCENTI, COLONNE_GRUPPI, COLONNE_IMPEGNI, COLONNE_LMI, COLONNE_PARAMETRI, COLONNE_STUDENTI,
+    COLONNE_ABBINAMENTI, COLONNE_DOCENTI, COLONNE_GRUPPI, COLONNE_IMPEGNI, COLONNE_LMI,
+    COLONNE_PARAMETRI, COLONNE_STUDENTI,
     PARAMETRI_DEFAULT,
 )
 from orario.trasporti import Coordinate, TrasportiError
@@ -81,7 +82,8 @@ def gruppo(numero, docente, *studenti, note="") -> dict:
     return d
 
 
-def tabelle(studenti=(), docenti=(), gruppi=(), lmi=(), parametri=None, impegni=()) -> dict[str, Tabella]:
+def tabelle(studenti=(), docenti=(), gruppi=(), lmi=(), parametri=None, impegni=(),
+            abbinamenti=()) -> dict[str, Tabella]:
     par = {n: v for n, v, _ in PARAMETRI_DEFAULT}
     par.update(parametri or {})
     return {
@@ -93,6 +95,8 @@ def tabelle(studenti=(), docenti=(), gruppi=(), lmi=(), parametri=None, impegni=
                                [_riga(COLONNE_GRUPPI, g) for g in gruppi]),
         FOGLIO_IMPEGNI: Tabella(FOGLIO_IMPEGNI, list(COLONNE_IMPEGNI),
                                 [_riga(COLONNE_IMPEGNI, i) for i in impegni]),
+        FOGLIO_ABBINAMENTI: Tabella(FOGLIO_ABBINAMENTI, list(COLONNE_ABBINAMENTI),
+                                    [_riga(COLONNE_ABBINAMENTI, a) for a in abbinamenti]),
         FOGLIO_LMI: Tabella(FOGLIO_LMI, list(COLONNE_LMI),
                             [_riga(COLONNE_LMI, l) for l in lmi]),
         FOGLIO_PARAMETRI: Tabella(FOGLIO_PARAMETRI, list(COLONNE_PARAMETRI),
@@ -101,11 +105,17 @@ def tabelle(studenti=(), docenti=(), gruppi=(), lmi=(), parametri=None, impegni=
 
 
 def dati_di(studenti=(), docenti=(), gruppi=(), lmi=(), parametri=None,
-            percorso=None, timeout=10, impegni=()) -> DatiInput:
+            percorso=None, timeout=10, impegni=(), abbinamenti=()) -> DatiInput:
     par = {"Tempo massimo di calcolo (secondi)": timeout}
     par.update(parametri or {})
-    d = lettura.costruisci_dati(tabelle(studenti, docenti, gruppi, lmi, par, impegni), percorso)
+    d = lettura.costruisci_dati(tabelle(studenti, docenti, gruppi, lmi, par, impegni, abbinamenti), percorso)
     return d
+
+
+def abbinamento(docente, studente, giorno="Lunedì", ora="13:30", tipo="", note="") -> dict:
+    """Riga del foglio Abbinamenti fissi."""
+    return {"Docente": docente, "Studente": studente, "Tipo di lezione": tipo,
+            "Giorno": giorno, "Ora": ora, "Note": note}
 
 
 def impegno(cognome, nome="MARIO", classe=1, fasce=(), note="") -> dict:

@@ -17,12 +17,12 @@ from openpyxl import load_workbook
 from datetime import datetime
 
 from .costanti import (
-    COLONNE_AULE, FASCE, FOGLI_DATI, FOGLI_FACOLTATIVI, FOGLIO_DOCENTI, FOGLIO_GRUPPI, FOGLIO_IMPEGNI,
-    FOGLIO_LMI, FOGLIO_ORARIO, FOGLIO_PARAMETRI, FOGLIO_STUDENTI, FOGLIO_TRASPORTI, GIORNI, GIORNI_LUNGHI,
-    ORE, ORE_FINE, fascia,
+    COLONNE_AULE, FASCE, FOGLI_DATI, FOGLI_FACOLTATIVI, FOGLIO_ABBINAMENTI, FOGLIO_DOCENTI, FOGLIO_GRUPPI,
+    FOGLIO_IMPEGNI, FOGLIO_LMI, FOGLIO_ORARIO, FOGLIO_PARAMETRI, FOGLIO_STUDENTI, FOGLIO_TRASPORTI, GIORNI,
+    GIORNI_LUNGHI, NOMI_TIPO, ORE, ORE_FINE, fascia,
 )
 from .modello import (
-    DatiInput, Docente, GruppoLMC, LaboratorioLMI, Lezione, Orario, Parametri, Problema,
+    Abbinamento, DatiInput, Docente, GruppoLMC, LaboratorioLMI, Lezione, Orario, Parametri, Problema,
     ProblemiError, Studente, Trasporto,
 )
 
@@ -68,12 +68,13 @@ def leggi_tabelle(percorso: Path) -> dict[str, Tabella]:
             "errore", "File",
             f"Mancano i fogli: {', '.join(mancanti)}. Il file deve avere i fogli {', '.join(FOGLI_DATI)}.",
         )])
-    from .template import COLONNE_IMPEGNI
+    from .template import COLONNE_ABBINAMENTI, COLONNE_IMPEGNI
 
     tabelle: dict[str, Tabella] = {}
     for nome in FOGLI_DATI:
         if nome not in wb.sheetnames:      # foglio aggiunto in una versione successiva
-            tabelle[nome] = Tabella(nome, list(COLONNE_IMPEGNI) if nome == FOGLIO_IMPEGNI else [])
+            vuoti = {FOGLIO_IMPEGNI: COLONNE_IMPEGNI, FOGLIO_ABBINAMENTI: COLONNE_ABBINAMENTI}
+            tabelle[nome] = Tabella(nome, list(vuoti.get(nome, [])))
             continue
         ws = wb[nome]
         righe = list(ws.iter_rows(values_only=True))
@@ -289,9 +290,9 @@ def costruisci_dati(tabelle: dict[str, Tabella], percorso: Path | None = None) -
     td = tabelle[FOGLIO_DOCENTI]
     docenti: list[Docente] = []
     idx_fasce: list[int | None] = []
-    for fascia in FASCE:
+    for nome_colonna in FASCE:   # non chiamarla "fascia": nasconderebbe la funzione omonima
         try:
-            idx_fasce.append(td.colonna(fascia))
+            idx_fasce.append(td.colonna(nome_colonna))
         except KeyError:
             idx_fasce.append(None)
     if any(i is None for i in idx_fasce):
@@ -302,6 +303,8 @@ def costruisci_dati(tabelle: dict[str, Tabella], percorso: Path | None = None) -
         v = lambda p: td.valore(r, p)  # noqa: E731
         nome = v("Docente")
         if not nome:
+            continue
+        if nome.strip().upper() == "TOTALE":   # riga di comodo con le somme
             continue
         if _nota_di_esempio(v("Note")):
             if nome.upper() in _ESEMPIO_DOCENTI:
@@ -396,6 +399,38 @@ def costruisci_dati(tabelle: dict[str, Tabella], percorso: Path | None = None) -
                 continue
             st.fasce_non_disp |= occupate
 
+    # Abbinamenti fissi: lezioni già decise
+    ta = tabelle[FOGLIO_ABBINAMENTI]
+    abbinamenti: list[Abbinamento] = []
+    for i, r in enumerate(ta.righe, start=2):
+        v = lambda p: ta.valore(r, p)  # noqa: E731
+        docente_nome, studente_txt = v("Docente"), v("Studente")
+        if not docente_nome and not studente_txt:
+            continue
+        if "ESEMPIO" in v("Note").upper() and studente_txt.upper().startswith(("NERI", "ROSSI")):
+            continue
+        giorno_txt, ora_txt = v("Giorno"), v("Ora")
+        giorni_letti, _ = _giorni(giorno_txt)
+        if len(giorni_letti) != 1:
+            problemi.append(Problema("errore", f"{FOGLIO_ABBINAMENTI}, riga {i}",
+                                     f"Giorno «{giorno_txt}» non riconosciuto: scrivere Lun, Mar, Mer, Gio o Ven."))
+            continue
+        ora_pulita = ora_txt.strip().replace(".", ":")
+        if ora_pulita not in ORE:
+            problemi.append(Problema("errore", f"{FOGLIO_ABBINAMENTI}, riga {i}",
+                                     f"Ora «{ora_txt}» non riconosciuta: sono ammesse {', '.join(ORE)}."))
+            continue
+        tipo_txt = v("Tipo")
+        tipo = NOMI_TIPO.get(tipo_txt.strip().capitalize(), NOMI_TIPO.get(tipo_txt.strip(), ""))
+        if tipo_txt.strip() and not tipo:
+            problemi.append(Problema("errore", f"{FOGLIO_ABBINAMENTI}, riga {i}",
+                                     f"Tipo di lezione «{tipo_txt}» non riconosciuto: "
+                                     f"sono ammessi {', '.join(NOMI_TIPO)} oppure la casella vuota."))
+            continue
+        abbinamenti.append(Abbinamento(
+            docente=docente_nome, studente_raw=studente_txt, tipo=tipo,
+            fascia=fascia(giorni_letti.pop(), ORE.index(ora_pulita)), note=v("Note"), riga=i))
+
     # Parametri
     tp = tabelle[FOGLIO_PARAMETRI]
     par = Parametri()
@@ -420,7 +455,7 @@ def costruisci_dati(tabelle: dict[str, Tabella], percorso: Path | None = None) -
     if any(p.livello == "errore" for p in problemi):
         raise ProblemiError(problemi)
     return DatiInput(studenti=studenti, docenti=docenti, gruppi=gruppi, lmi=lmi, parametri=par,
-                     percorso=percorso, avvisi=problemi)
+                     abbinamenti=abbinamenti, percorso=percorso, avvisi=problemi)
 
 
 def leggi_dati(percorso: Path) -> DatiInput:
@@ -546,35 +581,79 @@ def applica_trasporti(dati: DatiInput, trasporti: dict[str, Trasporto]) -> int:
     return n
 
 
+def aggiorna_totali_docenti(tabelle: dict[str, Tabella]) -> None:
+    """Riempie la colonna «Ore dichiarate» e la riga TOTALE del foglio Docenti.
+
+    Sono numeri di comodo per chi compila: il programma li ricalcola e non li legge mai.
+    """
+    from .template import RIGA_TOTALE
+
+    td = tabelle.get(FOGLIO_DOCENTI)
+    if td is None or not td.intestazione:
+        return
+    try:
+        i_nome = td.colonna("Docente")
+        i_tot = td.colonna("Ore dichiarate")
+    except KeyError:
+        return
+    idx = []
+    for nome_colonna in FASCE:
+        try:
+            idx.append(td.colonna(nome_colonna))
+        except KeyError:
+            return
+    td.righe = [r for r in td.righe if r[i_nome].strip().upper() != RIGA_TOTALE]
+    per_fascia = [0] * len(FASCE)
+    totale = 0
+    for r in td.righe:
+        if not r[i_nome].strip():
+            continue
+        n = 0
+        for k, c in enumerate(idx):
+            if c < len(r) and (r[c] or "").strip():
+                n += 1
+                per_fascia[k] += 1
+        r[i_tot] = str(n)
+        totale += n
+    if not td.righe:
+        return
+    riga = [""] * len(td.intestazione)
+    riga[i_nome] = RIGA_TOTALE
+    for k, c in enumerate(idx):
+        riga[c] = str(per_fascia[k])
+    riga[i_tot] = str(totale)
+    td.righe.append(riga)
+
+
 # ── Aggiornamento della struttura di file creati con versioni precedenti ─────
 
-def aggiorna_struttura(tabelle: dict[str, Tabella]) -> list[str]:
-    """Aggiunge colonne e righe Parametri introdotte dopo la creazione del file. Ritorna cosa ha aggiunto."""
-    from .template import COLONNE_STUDENTI, PARAMETRI_DEFAULT
+def _titolo_colonna(h: str) -> str:
+    """Nome di colonna confrontabile: minuscolo, senza la parte fra parentesi."""
+    return re.sub(r"\s*\(.*?\)", "", (h or "").strip().lower())
 
+
+def aggiorna_struttura(tabelle: dict[str, Tabella]) -> list[str]:
+    """Porta un file creato con una versione precedente alla struttura di oggi.
+
+    Aggiunge i fogli e le colonne introdotti dopo, nella posizione giusta e senza toccare i dati,
+    e le righe nuove del foglio Parametri. Ritorna l'elenco di quello che ha aggiunto.
+    """
+    from .template import (
+        COLONNE_ABBINAMENTI, COLONNE_DOCENTI, COLONNE_GRUPPI, COLONNE_IMPEGNI, COLONNE_LMI,
+        COLONNE_PARAMETRI, COLONNE_STUDENTI, PARAMETRI_DEFAULT,
+    )
+
+    modello = {FOGLIO_STUDENTI: COLONNE_STUDENTI, FOGLIO_IMPEGNI: COLONNE_IMPEGNI,
+               FOGLIO_DOCENTI: COLONNE_DOCENTI, FOGLIO_GRUPPI: COLONNE_GRUPPI,
+               FOGLIO_ABBINAMENTI: COLONNE_ABBINAMENTI, FOGLIO_LMI: COLONNE_LMI,
+               FOGLIO_PARAMETRI: COLONNE_PARAMETRI}
     modifiche: list[str] = []
-    ts = tabelle.get(FOGLIO_STUDENTI)
-    if ts is not None and ts.intestazione:
-        presenti = [h.strip().lower() for h in ts.intestazione]
-        for colonna in COLONNE_STUDENTI:
-            if colonna.lower() not in presenti and not any(h.startswith(colonna.lower().split(" ")[0]) for h in presenti):
-                # inserisci nella posizione del template, subito dopo la colonna precedente che esiste
-                pos_tpl = COLONNE_STUDENTI.index(colonna)
-                pos = 0
-                for prec in reversed(COLONNE_STUDENTI[:pos_tpl]):
-                    if prec.lower() in presenti:
-                        pos = presenti.index(prec.lower()) + 1
-                        break
-                ts.intestazione.insert(pos, colonna)
-                presenti.insert(pos, colonna.lower())
-                for r in ts.righe:
-                    r.insert(pos, "")
-                modifiche.append(f"colonna '{colonna}' nel foglio {FOGLIO_STUDENTI}")
+
+    # caso speciale: l'aula unica per tutta la settimana è diventata una per giorno
     td = tabelle.get(FOGLIO_DOCENTI)
     if td is not None and td.intestazione:
         presenti = [h.strip().lower() for h in td.intestazione]
-        if "aula" in presenti and not any(h == "aula lun" for h in presenti):
-            # la vecchia colonna "Aula" diventa cinque colonne, una per giorno
+        if "aula" in presenti and "aula lun" not in presenti:
             i_aula = presenti.index("aula")
             td.intestazione[i_aula] = COLONNE_AULE[0]
             for k, nome_col in enumerate(COLONNE_AULE[1:], start=1):
@@ -584,11 +663,36 @@ def aggiorna_struttura(tabelle: dict[str, Tabella]) -> list[str]:
             modifiche.append(f"colonne {', '.join(COLONNE_AULE)} nel foglio {FOGLIO_DOCENTI} "
                              "(prima l'aula era una sola per tutta la settimana)")
 
+    for nome_foglio, colonne_modello in modello.items():
+        tab = tabelle.get(nome_foglio)
+        if tab is None:
+            continue
+        if not tab.intestazione:            # foglio nuovo, che la lettura ha creato vuoto
+            tab.intestazione = list(colonne_modello)
+            modifiche.append(f"foglio «{nome_foglio}»")
+            continue
+        presenti = [_titolo_colonna(h) for h in tab.intestazione]
+        for colonna in colonne_modello:
+            atteso = _titolo_colonna(colonna)
+            if atteso in presenti:
+                continue
+            pos = len(tab.intestazione)     # in coda, se non si trova un aggancio
+            for prec in reversed(colonne_modello[:colonne_modello.index(colonna)]):
+                if _titolo_colonna(prec) in presenti:
+                    pos = presenti.index(_titolo_colonna(prec)) + 1
+                    break
+            tab.intestazione.insert(pos, colonna)
+            presenti.insert(pos, atteso)
+            for r in tab.righe:
+                r.insert(pos, "")
+            modifiche.append(f"colonna «{colonna}» nel foglio {nome_foglio}")
+
     tp = tabelle.get(FOGLIO_PARAMETRI)
     if tp is not None and tp.intestazione:
         chiavi = [tp.valore(r, "Parametro").lower() for r in tp.righe]
         for nome, valore, spiegazione in PARAMETRI_DEFAULT:
             if nome.lower() not in chiavi:
                 tp.righe.append([nome, str(valore), spiegazione][:len(tp.intestazione)])
-                modifiche.append(f"riga '{nome}' nel foglio {FOGLIO_PARAMETRI}")
+                modifiche.append(f"riga «{nome}» nel foglio {FOGLIO_PARAMETRI}")
     return modifiche
+

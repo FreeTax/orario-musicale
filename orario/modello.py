@@ -129,6 +129,18 @@ class GruppoLMC:
 
 
 @dataclass
+class Abbinamento:
+    """Lezione già decisa: quel docente con quel ragazzo in quel giorno e a quell'ora."""
+    docente: str
+    studente: str = ""        # id "COGNOME NOME", risolto dai controlli
+    studente_raw: str = ""    # come scritto nel foglio
+    tipo: str = ""            # TIPO_STRUM1 / TIPO_STRUM2 / TIPO_LMC; vuoto = da dedurre
+    fascia: int = -1          # 0..19
+    note: str = ""
+    riga: int = 0
+
+
+@dataclass
 class LaboratorioLMI:
     nome: str
     classi: str
@@ -156,6 +168,7 @@ class DatiInput:
     gruppi: list[GruppoLMC]
     lmi: list[LaboratorioLMI]
     parametri: Parametri
+    abbinamenti: list[Abbinamento] = field(default_factory=list)
     percorso: Path | None = None
     avvisi: list["Problema"] = field(default_factory=list)  # segnalazioni non bloccanti della lettura
 
