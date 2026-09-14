@@ -16,6 +16,7 @@ import tempfile
 import threading
 import unittest
 import urllib.error
+import re
 import urllib.parse
 from datetime import date, datetime, timedelta
 from pathlib import Path
@@ -1108,8 +1109,11 @@ class TestAggiornaTrasporti(Caso):
     def _finto(self, url, timeout=60):
         self.chiamate.append(url)
         if "photon" in url:
+            # il servizio vero restituisce la via chiesta: il programma scarta le vie diverse
+            chiesto = urllib.parse.parse_qs(urllib.parse.urlparse(url).query)["q"][0]
+            via = re.sub(r"\s*\d+\S*\s*$", "", chiesto.split(",")[0]).strip() or "Via Roma"
             return {"features": [{"geometry": {"coordinates": [10.9, 43.9]},
-                                  "properties": {"name": "Via Roma", "city": "Pistoia",
+                                  "properties": {"name": via, "city": "Pistoia",
                                                  "osm_value": "residential"}}]}
         if "nominatim" in url:
             return [{"lat": "43.93", "lon": "10.91", "display_name": "Pistoia",

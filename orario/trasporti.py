@@ -10,7 +10,9 @@ così il calcolo dell'orario resta offline.
 
 from __future__ import annotations
 
+import difflib
 import json
+import re
 import threading
 import time
 import urllib.error
@@ -161,6 +163,36 @@ def _nominatim(q: str) -> list:
             _ultima_nominatim[0] = time.time()
 
 
+_PREFISSI_VIA = ("VIA", "VIALE", "V LE", "PIAZZA", "P ZA", "P ZZA", "PIAZZALE", "CORSO", "LARGO",
+                 "VICOLO", "BORGO", "STRADA", "LOCALITA", "LOC", "FRAZIONE", "FRAZ", "TRAVERSA",
+                 "LUNGARNO", "PODERE", "ATTERRAGGIO")
+
+
+def _nucleo_via(nome: str) -> str:
+    """"Via della Madonna" → "MADONNA": il nome della strada senza il tipo e le paroline."""
+    parole = [w for w in re.split(r"[^A-Za-zÀ-ú0-9']+", _normalizza_comune(nome).upper()) if w]
+    parole = [w for w in parole if w not in _PREFISSI_VIA and w not in ("DI", "DEL", "DELLA", "DELLE",
+                                                                        "DEI", "DEGLI", "DA", "DE", "D",
+                                                                        "IL", "LA", "LE", "I", "GLI", "E")]
+    return " ".join(parole)
+
+
+def _stessa_via(chiesto: str, trovato: str) -> bool:
+    """Il servizio a volte propone una via che non c'entra nulla: la si scarta.
+
+    Meglio il centro del comune, che è approssimativo ma vero, di una via sbagliata.
+    """
+    a, b = _nucleo_via(chiesto), _nucleo_via(trovato)
+    if not a or not b:
+        return True                      # niente da confrontare: si accetta
+    if a in b or b in a:
+        return True
+    # una parola vera in comune (le iniziali puntate come "A." non contano: farebbero combaciare tutto)
+    if {w for w in a.split() if len(w) > 2} & {w for w in b.split() if len(w) > 2}:
+        return True
+    return difflib.SequenceMatcher(None, a, b).ratio() >= 0.72
+
+
 def _nel_comune_photon(p: dict, comune: str) -> bool:
     if not comune:
         return True
@@ -187,6 +219,9 @@ def geocodifica_photon(indirizzo: str, comune: str = "", civico: str = "") -> li
                 continue
             if pr.get("osm_value") in ("administrative", "city", "town", "municipality"):
                 continue
+            nome_trovato = pr.get("name") or pr.get("street") or ""
+            if indirizzo and not _stessa_via(indirizzo, nome_trovato):
+                continue                 # il servizio ha proposto una via diversa da quella chiesta
             lon, lat = f["geometry"]["coordinates"]
             c = Coordinate(float(lat), float(lon), f"{pr.get('name') or pr.get('street', '')} {pr.get('housenumber', '')}, "
                                                     f"{pr.get('city') or pr.get('town') or pr.get('village') or comune}".strip())
@@ -216,6 +251,10 @@ def geocodifica(indirizzo: str, comune: str = "", civico: str = "") -> list[Coor
                 continue  # trovato in un altro comune (o solo nella stessa provincia): non è lui
             if not solo_comune and r.get("addresstype") in _TIPI_AMMINISTRATIVI:
                 continue  # cercavo una via e mi ha dato il comune intero: lo tengo solo come ultimo ripiego
+            if not solo_comune and indirizzo:
+                strada = (r.get("address") or {}).get("road", "") or r.get("name", "")
+                if strada and not _stessa_via(indirizzo, strada):
+                    continue
             c = Coordinate(float(r["lat"]), float(r["lon"]), nome[:80])
             if all(abs(c.lat - x.lat) > 1e-4 or abs(c.lon - x.lon) > 1e-4 for x in risultati):
                 risultati.append(c)
@@ -373,9 +412,10 @@ def aggiorna_trasporti(dati: DatiInput, progresso: Callable[[str], None] | None 
         esito, scelto = "nessun percorso trovato", candidati[0]
         minuti: list[int | None] = [None] * 4
         arrivi, mezzi = [""] * 4, [""] * 4
+        preciso = len(candidati)
         if s.comune:  # ultimo ripiego: il centro del comune (Nominatim, 1 richiesta/secondo)
             candidati = candidati + [None]  # type: ignore[list-item]
-        for coord in candidati:  # dal punto più preciso al più generico, finché si trova un mezzo
+        for n_tentativo, coord in enumerate(candidati):  # dal più preciso al più generico
             if annulla is not None and annulla.is_set():
                 return
             if coord is None:
@@ -392,7 +432,8 @@ def aggiorna_trasporti(dati: DatiInput, progresso: Callable[[str], None] | None 
                 esito = "errore: " + str(e)
                 continue
             if any(m is not None for m in minuti):
-                esito, scelto = "OK", coord
+                esito = "OK" if n_tentativo < preciso else "OK (via non trovata: usato il centro del comune)"
+                scelto = coord
                 break
         with lucchetto:
             risultati[s.id] = Trasporto(minuti, arrivi, mezzi, scelto.lat, scelto.lon, s.indirizzo_completo, esito, adesso)

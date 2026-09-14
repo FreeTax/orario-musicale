@@ -386,6 +386,14 @@ sono omonimi, e negli LMI questo vale per ogni nome dell'elenco separato da virg
 dati veri: Gori Camilla di 3ª e Gori Yvaine di 5ª) la cella resta come scritta, così è chi compila a
 scegliere. La verifica dei nomi al momento del calcolo accetta entrambe le forme.
 
+**Indirizzi: vie sbagliate scartate (14/9/2026)**: Photon risponde "a somiglianza" e su un indirizzo che
+non esiste nelle mappe restituiva comunque una via qualsiasi dello stesso comune (per «Via Renaggio» a
+Montecatini dava «Via Ugolino da Montecatini», per «De Papiglioni» all'Abetone «Via Del Libro Aperto»). Ora
+il nome della via trovata viene confrontato con quello chiesto, ignorando "Via/Piazza/Località" e le
+paroline, e con le iniziali puntate che non fanno testo; se non somiglia, il risultato si scarta e si scende
+al ripiego successivo, fino al centro del comune. Meglio un punto approssimativo ma vero che una via
+sbagliata: l'esito lo dichiara, «OK (via non trovata: usato il centro del comune)».
+
 **Righe di esempio (9/9/2026)**: il controllo bloccava il calcolo appena trovava la parola «ESEMPIO» nella
 colonna Note, anche quando la riga era stata riempita con dati veri e restava solo la nota. Ora la riga è
 considerata di esempio soltanto se contiene ancora i nomi inventati del modello (Rossi Mario, Neri Anna,
