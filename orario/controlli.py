@@ -106,7 +106,8 @@ def apri_fasce_mancanti(dati: DatiInput) -> list[Problema]:
             d.disponibilita[f] = "X"
         elenco = ", ".join(nome_fascia(f).replace("-", " alle ").replace(":", ".") for f in aggiunte)
         segnalazioni.append(Problema(
-            "avviso", f"{FOGLIO_DOCENTI}: {d.nome}",
+            "avviso", f"{FOGLIO_DOCENTI}: {d.nome}", categoria="ore aperte d'ufficio a un docente",
+            messaggio=
             f"Servivano {servono} ore ma erano dichiarate disponibili solo {disponibili} fasce. "
             f"Ne ho aperte {len(aggiunte)} fra quelle segnate come non disponibili, per poter calcolare "
             f"l'orario: {elenco}. Da concordare con il docente."))
@@ -117,7 +118,7 @@ def controlla(dati: DatiInput) -> list[Problema]:
     """Esegue tutti i controlli. Solleva ProblemiError se ci sono errori; ritorna gli avvisi."""
     problemi: list[Problema] = list(dati.avvisi)   # segnalazioni già emerse leggendo il file
     err = lambda dove, msg: problemi.append(Problema("errore", dove, msg))  # noqa: E731
-    avv = lambda dove, msg: problemi.append(Problema("avviso", dove, msg))  # noqa: E731
+    avv = lambda dove, msg, cat="": problemi.append(Problema("avviso", dove, msg, cat))  # noqa: E731
 
     nomi_docenti = [d.nome for d in dati.docenti]
     doppi = [n for n, c in Counter(nomi_docenti).items() if c > 1]
@@ -141,9 +142,15 @@ def controlla(dati: DatiInput) -> list[Problema]:
         elif h2 and s.doc2 not in docenti:
             err(dove, f"Il docente '{s.doc2}' del 2° strumento non è nel foglio {FOGLIO_DOCENTI}.")
         if s.km is None and s.trasporto is None:
-            avv(dove, "Né KM né tempi dei mezzi: lo studente verrà trattato come se abitasse vicino alla scuola.")
+            avv(dove, "Né KM né tempi dei mezzi: lo studente verrà trattato come se abitasse vicino alla scuola.",
+                "ragazzi senza distanza né tempi dei mezzi")
+        elif s.trasporto is not None and "centro del comune" in s.trasporto.esito:
+            avv(dove, f"L'indirizzo «{s.indirizzo_completo}» non è sulle mappe: i tempi dei mezzi sono calcolati "
+                      "dal centro del comune, quindi approssimati.",
+                "indirizzi non trovati: tempi presi dal centro del comune")
         if s.ore_consecutive and h1 != 2:
-            avv(dove, "Ore consecutive = SI ma la classe ha una sola ora di 1° strumento: ignorato.")
+            avv(dove, "Ore consecutive = SI ma la classe ha una sola ora di 1° strumento: ignorato.",
+                "richieste di ore consecutive ignorate")
         if len(s.giorni_non_disp) >= 5:
             err(dove, "Lo studente non è disponibile in nessun giorno.")
         libere = [f for f in range(N_FASCE) if s.libero(f)]
@@ -170,7 +177,8 @@ def controlla(dati: DatiInput) -> list[Problema]:
                 err(dove, f"Studente '{testo}': {motivo}.")
                 continue
             if motivo:
-                avv(dove, motivo + ": conviene correggere il nome nel foglio.")
+                avv(dove, motivo + ": conviene correggere il nome nel foglio.",
+                    "nomi riconosciuti per somiglianza")
             if s.classe not in CLASSI_LMC:
                 err(dove, f"{s.cognome} {s.nome} è in {s.classe}ª: la musica da camera è solo per 3ª, 4ª e 5ª.")
                 continue
@@ -198,7 +206,7 @@ def controlla(dati: DatiInput) -> list[Problema]:
         n_x, n_a = len(d.fasce_x), len(d.fasce_a)
         richieste = ore_richieste.get(d.nome, 0)
         if richieste == 0 and d.ore_accomp == 0:
-            avv(dove, "Nessuna lezione assegnata a questo docente.")
+            avv(dove, "Nessuna lezione assegnata a questo docente.", "docenti senza nessuna lezione")
             continue
         if n_a > d.ore_accomp:
             err(dove, f"Ci sono {n_a} caselle con A ma le ore di accompagnamento indicate sono {d.ore_accomp}.")
@@ -210,7 +218,8 @@ def controlla(dati: DatiInput) -> list[Problema]:
             err(dove, f"Servono {totale} ore ({richieste} lezione + {d.ore_accomp} accompagnamento) "
                       f"ma il docente ha solo {n_x + n_a} fasce disponibili.")
         elif totale == n_x + n_a:
-            avv(dove, f"Le ore richieste ({totale}) coincidono esattamente con le fasce disponibili: nessun margine.")
+            avv(dove, f"Le ore richieste ({totale}) coincidono esattamente con le fasce disponibili: nessun margine.",
+                "docenti senza nessuna ora di margine")
 
     # ── Studente: fattibilità elementare con i suoi docenti ──
     for s in dati.studenti:
@@ -244,11 +253,13 @@ def controlla(dati: DatiInput) -> list[Problema]:
     con_trasporto = [s for s in con_indirizzo if s.trasporto is not None]
     if con_indirizzo and not con_trasporto:
         avv(FOGLIO_STUDENTI, f"{len(con_indirizzo)} studenti hanno l'indirizzo ma i tempi dei mezzi non sono stati calcolati: "
-                             "usati i KM. Menu Orario → Aggiorna trasporti (serve internet).")
+                             "usati i KM. Menu Orario → Aggiorna trasporti (serve internet).",
+            "tempi dei mezzi non calcolati")
     elif con_indirizzo and len(con_trasporto) < len(con_indirizzo):
         mancanti = [s for s in con_indirizzo if s.trasporto is None]
         avv(FOGLIO_STUDENTI, f"Tempi dei mezzi mancanti o non aggiornati per {len(mancanti)} studenti "
-                             f"({', '.join(s.cognome.title() for s in mancanti[:6])}{' …' if len(mancanti) > 6 else ''}): usati i KM.")
+                             f"({', '.join(s.cognome.title() for s in mancanti[:6])}{' …' if len(mancanti) > 6 else ''}): usati i KM.",
+            "tempi dei mezzi non calcolati")
 
     # ── LMI ──
     for l in dati.lmi:

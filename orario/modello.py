@@ -185,6 +185,7 @@ class Problema:
     livello: str  # "errore" oppure "avviso"
     dove: str  # es. "Studenti, riga 12" oppure "Docenti: Simonelli"
     messaggio: str
+    categoria: str = ""  # per raggruppare gli avvisi nel riepilogo prima del calcolo
 
     def __str__(self) -> str:
         return f"[{self.livello.upper()}] {self.dove}: {self.messaggio}"

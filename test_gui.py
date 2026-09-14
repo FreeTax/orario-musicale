@@ -139,11 +139,25 @@ class BaseGui(unittest.TestCase):
         gui.messagebox = self.finte
         gui.filedialog = self.finte
         mod_trasporti.aggiorna_trasporti = finti_trasporti
+        # la finestra che elenca le approssimazioni bloccherebbe i test: la sostituisco con una
+        # che risponde "Calcola comunque" e registra quello che avrebbe mostrato
+        self.approssimazioni: list = []
+        self.risposta_approssimazioni = True
+        prova = self
+
+        class FintaApprossimazioni:
+            def __init__(self, master, avvisi):
+                prova.approssimazioni = list(avvisi)
+                self.procedi = prova.risposta_approssimazioni
+
+        self.finestra_approx_originale = gui.FinestraApprossimazioni
+        gui.FinestraApprossimazioni = FintaApprossimazioni
         self.avanzi: list[str] = []
 
     def tearDown(self) -> None:
         gui.IMPOSTAZIONI = self.imp_originale
         gui.messagebox, gui.filedialog = self.mb_originale, self.fd_originale
+        gui.FinestraApprossimazioni = self.finestra_approx_originale
         mod_trasporti.aggiorna_trasporti = self.originale_trasporti
         for p in self.tmp.rglob("*"):
             try:
@@ -721,6 +735,31 @@ class TestCalcolo(BaseGui):
             yield
         self.esegui(script)
         self.assertEqual(self.avanzi, [])
+
+    def test_23_riepilogo_approssimazioni(self):
+        """Prima di calcolare compaiono le approssimazioni; con Annulla non si calcola."""
+        f = self.copia_esempio()
+        # tolgo il KM a due ragazzi: diventano due approssimazioni
+        wb = openpyxl.load_workbook(f)
+        ws = wb["Studenti"]
+        col_km = [c.value for c in ws[1]].index("KM") + 1
+        for r in (2, 3):
+            ws.cell(row=r, column=col_km).value = None
+        wb.save(f)
+
+        def script(app):
+            app.apri_file(f)
+            yield
+            self.risposta_approssimazioni = False        # "Annulla, correggo i dati"
+            app.calcola()
+            yield
+            categorie = {a.categoria for a in self.approssimazioni}
+            self.assertIn("ragazzi senza distanza né tempi dei mezzi", categorie)
+            self.assertTrue(all(a.categoria for a in self.approssimazioni), "ogni avviso ha una categoria")
+            self.assertIsNone(app.orario, "con Annulla il calcolo non parte")
+            self.assertEqual(self.finte.conta("askdirectory"), 0, "non deve nemmeno chiedere la cartella")
+            yield
+        self.esegui(script)
 
     def test_17_errore_nei_dati_blocca_il_calcolo(self):
         f = self.copia_esempio()

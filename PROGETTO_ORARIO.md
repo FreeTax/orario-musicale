@@ -387,6 +387,19 @@ sono omonimi, e negli LMI questo vale per ogni nome dell'elenco separato da virg
 dati veri: Gori Camilla di 3ª e Gori Yvaine di 5ª) la cella resta come scritta, così è chi compila a
 scegliere. La verifica dei nomi al momento del calcolo accetta entrambe le forme.
 
+**Riepilogo delle approssimazioni prima del calcolo (14/9/2026, richiesta di Francesco)**: premendo
+Calcola il programma esegue subito i controlli e, se ha dovuto dare qualcosa per buono, apre una finestra
+che lo elenca raggruppato per tipo, con "Calcola comunque" e "Annulla, correggo i dati". Le categorie sono
+quelle decise in queste settimane: ore aperte d'ufficio a un docente, ragazzi senza distanza né tempi dei
+mezzi, indirizzi non trovati con i tempi presi dal centro del comune, tempi dei mezzi non ancora calcolati,
+nomi riconosciuti per somiglianza, righe con la nota ESEMPIO rimasta, impegni riferiti a ragazzi non in
+elenco, richieste di ore consecutive ignorate, docenti senza margine e docenti senza lezioni. Ogni avviso
+porta con sé la sua `categoria` (campo nuovo di `Problema`).
+
+**Indirizzi: si usa la via, non il comune**: la geolocalizzazione parte sempre da via e civico e scende al
+comune solo se le mappe non conoscono quella via. Sul file vero: 100 indirizzi su 103 risolti con la via
+esatta, 2 dal centro del comune, 1 senza percorso. I due approssimati compaiono nel riepilogo.
+
 **Esportazione in Word (14/9/2026, richiesta di Francesco)**: oltre a Excel e PDF il programma scrive i tre
 documenti anche in `.docx` (`orario/export_docx.py`, con python-docx), riusando le stesse celle di PDF ed
 Excel: settimanale orizzontale con una pagina per giorno, per docente e per studente in verticale, grassetto

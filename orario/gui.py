@@ -786,6 +786,22 @@ class App(ctk.CTk):
         assert self.percorso is not None
         if not self.salva():
             return
+        # controlli subito: gli errori fermano qui, le approssimazioni si mostrano e si conferma
+        try:
+            from .controlli import controlla
+            dati_controllati = costruisci_dati(self.tabelle, self.percorso)
+            applica_trasporti(dati_controllati, leggi_trasporti(self.percorso))
+            avvisi_prima = controlla(dati_controllati)
+        except ProblemiError as e:
+            self.mostra_problemi(e.problemi, titolo="Il calcolo si è fermato: ci sono problemi da risolvere")
+            return
+        except Exception:
+            avvisi_prima = []
+        approssimazioni = [a for a in avvisi_prima if a.categoria]
+        if approssimazioni and not self._calcola_dopo_trasporti:
+            if not FinestraApprossimazioni(self, approssimazioni).procedi:
+                return
+
         # se ci sono indirizzi ma i tempi dei mezzi mancano, proponi di calcolarli prima
         if not self._calcola_dopo_trasporti:
             pronti, totali = self._stato_trasporti()
@@ -1117,6 +1133,65 @@ class FinestraTesto(ctk.CTkToplevel):
         box.insert("end", testo)
         box.configure(state="disabled")
         ctk.CTkButton(self, text="Chiudi", command=self.destroy).pack(pady=(0, 14))
+
+
+class FinestraApprossimazioni(ctk.CTkToplevel):
+    """Elenca, prima di calcolare, tutto ciò che il programma darà per buono."""
+
+    def __init__(self, master, avvisi: list[Problema]) -> None:
+        super().__init__(master)
+        self.procedi = False
+        self.title("Prima di calcolare")
+        self.geometry("900x620")
+        self.transient(master)
+
+        gruppi: dict[str, list[Problema]] = {}
+        for a in avvisi:
+            gruppi.setdefault(a.categoria, []).append(a)
+        ordinati = sorted(gruppi.items(), key=lambda kv: -len(kv[1]))
+
+        ctk.CTkLabel(self, text="Il programma calcolerà lo stesso, dando per buone queste cose",
+                     font=ctk.CTkFont(size=16, weight="bold")).pack(pady=(16, 2), padx=16, anchor="w")
+        ctk.CTkLabel(self, text="Nessuna di queste impedisce il calcolo. Se qualcuna non ti convince, "
+                                "annulla, correggi i dati e ricalcola.",
+                     text_color="gray40", wraplength=850, justify="left").pack(padx=16, anchor="w")
+
+        riassunto = ctk.CTkFrame(self, fg_color=("gray92", "gray18"))
+        riassunto.pack(fill="x", padx=16, pady=10)
+        for categoria, elenco in ordinati:
+            ctk.CTkLabel(riassunto, text=f"•  {len(elenco)}  {categoria}",
+                         font=ctk.CTkFont(size=14), anchor="w").pack(fill="x", padx=12, pady=3)
+
+        box = ctk.CTkTextbox(self, font=ctk.CTkFont(size=12), wrap="word")
+        box.pack(fill="both", expand=True, padx=16, pady=(0, 8))
+        self.testo = ""
+        for categoria, elenco in ordinati:
+            self.testo += f"{categoria.upper()} ({len(elenco)})\n"
+            for a in elenco:
+                self.testo += f"   • {a.dove}: {a.messaggio}\n"
+            self.testo += "\n"
+        box.insert("end", self.testo)
+        box.configure(state="disabled")
+
+        pulsanti = ctk.CTkFrame(self, fg_color="transparent")
+        pulsanti.pack(pady=(0, 14))
+        ctk.CTkButton(pulsanti, text="Annulla, correggo i dati", width=200, fg_color="gray70",
+                      text_color="black", hover_color="gray60", command=self.destroy).pack(side="left", padx=6)
+        ctk.CTkButton(pulsanti, text="Copia il testo", width=140, fg_color="gray70", text_color="black",
+                      hover_color="gray60", command=self.copia).pack(side="left", padx=6)
+        ctk.CTkButton(pulsanti, text="⚡  Calcola comunque", width=200, height=36, fg_color="#1f7a3f",
+                      hover_color="#186331", font=ctk.CTkFont(size=14, weight="bold"),
+                      command=self.avanti).pack(side="left", padx=6)
+        self.after(50, self.grab_set)
+        master.wait_window(self)
+
+    def copia(self) -> None:
+        self.clipboard_clear()
+        self.clipboard_append(self.testo)
+
+    def avanti(self) -> None:
+        self.procedi = True
+        self.destroy()
 
 
 class FinestraFatto(ctk.CTkToplevel):

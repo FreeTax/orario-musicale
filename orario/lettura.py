@@ -187,7 +187,8 @@ def _nota_di_esempio(nota: str) -> bool:
 def _residuo_esempio(dove: str, riga: int) -> Problema:
     return Problema("avviso", f"{dove}, riga {riga}",
                     "Nella colonna Note è rimasta la scritta «ESEMPIO»: la riga contiene dati veri, "
-                    "quindi è stata usata lo stesso. Puoi cancellare quella nota.")
+                    "quindi è stata usata lo stesso. Puoi cancellare quella nota.",
+                    "righe con la nota ESEMPIO rimasta")
 
 
 # ── Costruzione DatiInput ────────────────────────────────────────────────────
@@ -390,7 +391,8 @@ def costruisci_dati(tabelle: dict[str, Tabella], percorso: Path | None = None) -
                     problemi.append(Problema("avviso", f"{FOGLIO_IMPEGNI}, riga {i}",
                                              f"«{ti.valore(r, 'Cognome')} {ti.valore(r, 'Nome')}» non è nel foglio "
                                              f"{FOGLIO_STUDENTI}: gli impegni segnati su questa riga sono stati "
-                                             "ignorati. Se il ragazzo non c'è più, la riga si può cancellare."))
+                                             "ignorati. Se il ragazzo non c'è più, la riga si può cancellare.",
+                                             "impegni riferiti a ragazzi non in elenco"))
                 continue
             st.fasce_non_disp |= occupate
 
