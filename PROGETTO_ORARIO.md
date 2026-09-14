@@ -134,7 +134,7 @@ vanno rifatte o copiate; in futuro si può fare uno script di aggiornamento che 
 | Foglio | Contenuto | Stato precompilazione |
 |--------|-----------|-----------------------|
 | Istruzioni | Come compilare | completo |
-| Studenti | Classe, Cognome, Nome, Comune, Indirizzo, Civico, KM, Strumento 1, Docente 1, Strumento 2, Docente 2, Ore consecutive (SI/NO), Giorno unico (SI/NO), Giorni NON disponibili, Note | 109 ragazzi; 81 con KM; le celle da completare sono **gialle** |
+| Studenti | Classe, Cognome, Nome, Strumento 1, Docente 1, Strumento 2, Docente 2, 1° strumento attaccato (SI/NO), Giorno unico (SI/NO), Giorni NON disponibili, Comune, Indirizzo, Civico, KM, Note | 109 ragazzi; 81 con KM; le celle da completare sono **gialle** |
 | Impegni studenti | Classe, Cognome, Nome + 20 colonne Lun 13:30 … Ven 16:30 (X = il ragazzo **non** può esserci), Note | vuoto; il pulsante «Copia i nomi dagli studenti» lo riempie |
 | Docenti | Docente, Strumento/i, **5 aule** (una per giorno), **Ore accompagnamento** (numero), 20 colonne Lun 13:30 … Ven 16:30 (X = disponibile, vuoto = no, A = ora di accompagnamento fissata a mano), **Ore dichiarate**, Note; in fondo la riga **TOTALE** | 21 docenti; aule dell'anno scorso; disponibilità **vuote** |
 | Gruppi LMC | Gruppo, Docente, Studente 1…5, Note | vuoto, con 2 righe di esempio grigie da cancellare; i gruppi li fornisce lo zio |
@@ -178,7 +178,7 @@ Si usa un **risolutore di vincoli** (OR-Tools CP-SAT, libreria gratuita di Googl
 4. Ogni ragazzo riceve esattamente le ore previste dalla sua classe.
 5. Tutti i membri di un gruppo LMC nella stessa fascia dello stesso giorno, con il loro docente.
 6. Rispetto dei giorni in cui il ragazzo non può venire.
-7. Ore consecutive = SI → le 2 ore di 1° strumento sono adiacenti nello stesso giorno.
+7. 1° strumento attaccato = SI → le 2 ore di 1° strumento sono adiacenti nello stesso giorno; = NO → in due giorni diversi.
 8. Giorno unico = SI → tutte le lezioni del ragazzo nello stesso giorno.
 
 **Preferenze** (il programma cerca di soddisfarle il più possibile, in quest'ordine di importanza):
@@ -390,6 +390,14 @@ i ragazzi (si può anche digitare); scrivendo solo il cognome, il nome viene agg
 sono omonimi, e negli LMI questo vale per ogni nome dell'elenco separato da virgole. Con gli omonimi (nei
 dati veri: Gori Camilla di 3ª e Gori Yvaine di 5ª) la cella resta come scritta, così è chi compila a
 scegliere. La verifica dei nomi al momento del calcolo accetta entrambe le forme.
+
+**Colonna «1° strumento attaccato» (14/9/2026, richiesta di Francesco)**: sostituisce «Ore consecutive» e
+ha tre stati invece di due. **SI** = le 2 ore di 1° strumento una di seguito all'altra (come prima);
+**NO** = in due giorni diversi, quindi mai attaccate; **casella vuota** = decide il programma, che di
+norma le mette nello stesso pomeriggio perché così non lascia buchi. Vale solo per le classi 1ª, 2ª e 5ª,
+le uniche con 2 ore; nelle altre è un avviso e viene ignorata. I controlli si accorgono prima se la
+richiesta è impossibile (per il SI servono due ore consecutive libere dello stesso docente, per il NO
+almeno due giorni diversi). Aprendo un file di prima, la colonna viene rinominata mantenendo i SI scritti.
 
 **Laboratori LMI negli abbinamenti fissi (14/9/2026, richiesta di Francesco)**: nella colonna Studente si
 può scrivere, al posto di un ragazzo, il nome di un laboratorio del foglio LMI (tipo «Laboratorio LMI»). Il

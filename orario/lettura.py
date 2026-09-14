@@ -201,6 +201,14 @@ def _bool(v: str) -> bool:
     return (v or "").strip().upper() in _SI
 
 
+def _si_no(v: str) -> bool | None:
+    """SI → True, NO → False, casella vuota → None (nessuna preferenza)."""
+    t = (v or "").strip().upper()
+    if not t:
+        return None
+    return t in _SI
+
+
 def _float(v: str) -> float | None:
     s = (v or "").strip().replace(",", ".")
     if not s:
@@ -281,7 +289,9 @@ def costruisci_dati(tabelle: dict[str, Tabella], percorso: Path | None = None) -
             strum1=v("Strumento 1").upper(), doc1=v("Docente 1"),
             strum2=v("Strumento 2").upper() if classe != 5 else "",
             doc2=v("Docente 2") if classe != 5 else "",
-            ore_consecutive=_bool(v("Ore consecutive")), giorno_unico=_bool(v("Giorno unico")),
+            # il nome vecchio della colonna era "Ore consecutive": i file di prima si leggono lo stesso
+            primo_attaccato=_si_no(v("1° strumento attaccato") or v("Ore consecutive")),
+            giorno_unico=_bool(v("Giorno unico")),
             giorni_non_disp=giorni, note=v("Note"), riga=i,
             comune=v("Comune"), indirizzo=v("Indirizzo"), civico=v("Civico"),
         ))
@@ -649,6 +659,16 @@ def aggiorna_struttura(tabelle: dict[str, Tabella]) -> list[str]:
                FOGLIO_ABBINAMENTI: COLONNE_ABBINAMENTI, FOGLIO_LMI: COLONNE_LMI,
                FOGLIO_PARAMETRI: COLONNE_PARAMETRI}
     modifiche: list[str] = []
+
+    # caso speciale: "Ore consecutive" è diventata "1° strumento attaccato" (SI = attaccate,
+    # NO = in giorni diversi, vuoto = decide il programma). I SI scritti prima restano validi.
+    ts = tabelle.get(FOGLIO_STUDENTI)
+    nuova = COLONNE_STUDENTI[COLONNE_STUDENTI.index("Docente 2") + 1]
+    if ts is not None and ts.intestazione:
+        titoli = [_titolo_colonna(h) for h in ts.intestazione]
+        if "ore consecutive" in titoli and _titolo_colonna(nuova) not in titoli:
+            ts.intestazione[titoli.index("ore consecutive")] = nuova
+            modifiche.append(f"colonna «Ore consecutive» rinominata «{nuova}» nel foglio {FOGLIO_STUDENTI}")
 
     # caso speciale: l'aula unica per tutta la settimana è diventata una per giorno
     td = tabelle.get(FOGLIO_DOCENTI)

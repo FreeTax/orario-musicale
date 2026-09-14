@@ -35,7 +35,7 @@ def main() -> None:
     aggiorna_struttura(tab)   # il file di partenza può essere di una versione precedente
     ts, td, tg, tl = tab[FOGLIO_STUDENTI], tab[FOGLIO_DOCENTI], tab[FOGLIO_GRUPPI], tab[FOGLIO_LMI]
     c = {n: ts.colonna(n) for n in ["Classe", "Cognome", "Nome", "KM", "Strumento 1", "Docente 1",
-                                    "Strumento 2", "Docente 2", "Ore consecutive", "Giorno unico", "Giorni NON"]}
+                                    "Strumento 2", "Docente 2", "1° strumento attaccato", "Giorno unico", "Giorni NON"]}
 
     # ── docenti per strumento e carico attuale (classi 2ª-5ª) ──
     doc_per_strum: dict[str, set[str]] = defaultdict(set)
@@ -74,7 +74,7 @@ def main() -> None:
             r[c["KM"]] = r[c["KM"]] or str(round(random.choice([0.8, 2.5, 4, 7, 12, 18, 25, 31]) + random.random(), 1))
         x = random.random()
         if cl in (1, 2, 5) and x < 0.10:
-            r[c["Ore consecutive"]] = "SI"
+            r[c["1° strumento attaccato"]] = "SI"
         elif x < 0.13:
             r[c["Giorno unico"]] = "SI"
         elif x < 0.17:

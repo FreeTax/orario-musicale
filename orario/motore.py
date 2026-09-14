@@ -339,11 +339,17 @@ class _Modello:
                     occ_s.append(0)
             # simmetria: due ore di 1° strumento non consecutive sono intercambiabili.
             # Non si applica se una delle due è stata fissata a mano: l'ordine lo decide il foglio.
-            if not self.diagnosi:
-                s1 = [u for u in unita_s if u.tipo == TIPO_STRUM1 and u.seguente is None and not u.seconda]
-                if not any(u.fissata for u in s1):
-                    for a, b in zip(s1, s1[1:]):
-                        m.add(self._pos(a) < self._pos(b))
+            s1 = [u for u in unita_s if u.tipo == TIPO_STRUM1 and u.seguente is None and not u.seconda]
+            if not self.diagnosi and not any(u.fissata for u in s1):
+                for a, b in zip(s1, s1[1:]):
+                    m.add(self._pos(a) < self._pos(b))
+            # «1° strumento attaccato = NO»: le 2 ore in due giorni diversi (quindi mai attaccate)
+            if s.primo_separato and len(s1) == 2:
+                for g in range(N_GIORNI):
+                    dello_stesso_giorno = [self.x[u.idx, f] for u in s1 for f in range(fascia(g, 0), fascia(g, 0) + N_ORE)
+                                           if (u.idx, f) in self.x]
+                    if len(dello_stesso_giorno) > 1:
+                        m.add(sum(dello_stesso_giorno) <= 1)
             # le ore individuali stanno volentieri nello stesso pomeriggio della musica da camera:
             # senza buchi, "stesso giorno" vuol dire attaccate, prima o dopo la lezione di gruppo
             u_lmc = next((u for u in unita_s if u.tipo == TIPO_LMC), None)
@@ -733,6 +739,10 @@ def _verifica(dati: DatiInput, unita: list[_Unita], lezioni: list[Lezione]) -> N
                 errore(f"{et}: le due ore di 1° strumento non sono consecutive.")
             if a.due_ore or not b.due_ore:
                 errore(f"{et}: indicatore due_ore sbagliato.")
+        if s.primo_separato and h1 == 2:
+            a, b = sorted((l for l in mie if l.tipo == TIPO_STRUM1), key=lambda l: l.fascia)
+            if a.giorno == b.giorno:
+                errore(f"{et}: le due ore di 1° strumento sono nello stesso giorno, ma sono state chieste separate.")
         giorni = {l.giorno for l in mie}
         if s.giorno_unico and len(giorni) > 1:
             errore(f"{et}: giorno unico non rispettato ({len(giorni)} giorni).")
@@ -841,7 +851,7 @@ def _diagnosi(dati: DatiInput, unita: list[_Unita], stato_strict: int,
         if stato_strict == cp_model.INFEASIBLE:
             problemi.append(Problema("errore", "Calcolo",
                                      "I vincoli si contraddicono tra loro ma non è stato possibile isolare la lezione responsabile. "
-                                     "Controllare i vincoli 'Giorno unico', 'Ore consecutive' e i giorni non disponibili."))
+                                     "Controllare i vincoli 'Giorno unico', '1° strumento attaccato' e i giorni non disponibili."))
         else:
             problemi.append(Problema("errore", "Calcolo",
                                      f"Nessuna combinazione trovata entro {dati.parametri.timeout_s} secondi. "
@@ -906,7 +916,7 @@ def _spiega_unita(dati: DatiInput, unita: list[_Unita], u: _Unita,
             if n_lib > 0:
                 frasi.append(f"Restano {n_lib} fasce libere ma non compatibili con gli altri vincoli "
                              f"({'giorno unico, ' if any(s.giorno_unico for s in studenti) else ''}"
-                             f"{'ore consecutive, ' if u.seguente is not None or u.seconda else ''}massimo rientri).")
+                             f"{'1° strumento attaccato, ' if u.seguente is not None or u.seconda else ''}massimo rientri).")
     if docente.fasce_a and u.tipo != TIPO_ACCOMP:
         frasi.append(f"Attenzione: il docente ha {len(docente.fasce_a)} A fissate "
                      f"({', '.join(nome_fascia(f) for f in docente.fasce_a)}) e le lezioni della stessa giornata "
@@ -926,7 +936,7 @@ def _spiega_unita(dati: DatiInput, unita: list[_Unita], u: _Unita,
         frasi.append(f"Il gruppo ha {len(studenti)} ragazzi che devono essere liberi tutti nella stessa fascia.")
     frasi.append(f"Suggerimento: aggiungere qualche X al docente {u.docente}"
                  + (" nei giorni indicati" if vietati else "")
-                 + (", oppure allentare i vincoli dello studente (giorno unico, ore consecutive, giorni non disponibili)."
+                 + (", oppure allentare i vincoli dello studente (giorno unico, 1° strumento attaccato, giorni non disponibili)."
                     if studenti else "."))
     return Problema("errore", dove, " ".join(frasi))
 

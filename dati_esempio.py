@@ -91,6 +91,7 @@ GRUPPI = [
 
 # ── Eccezioni per singolo ragazzo ────────────────────────────────────────────
 ORE_CONSECUTIVE = {"AMATO", "QUERCI", "MARCHI"}       # le 2 ore di 1° strumento attaccate
+ORE_SEPARATE = {"PIERI", "SARTI"}                      # le 2 ore in due giorni diversi
 GIORNO_UNICO = {"VESTRI", "ZACCARIA"}                  # un solo rientro a settimana
 GIORNI_NON_DISPONIBILI = {"LUPI": "Mar", "NESTI": "Gio", "TURCHI": "Lun, Ven"}
 # Ore singole in cui il ragazzo ha altri impegni (sport, catechismo...): "Lun 15:30" ecc.
@@ -169,12 +170,14 @@ def main(uscita: Path) -> None:
     # ── eccezioni e disponibilità nelle celle ──
     ws = wb[FOGLIO_STUDENTI]
     intest = [c.value for c in ws[1]]
-    i_cog, i_cons = intest.index("Cognome"), intest.index("Ore consecutive (SI/NO)")
+    i_cog, i_cons = intest.index("Cognome"), intest.index("1° strumento attaccato (SI/NO)")
     i_unico, i_giorni = intest.index("Giorno unico (SI/NO)"), intest.index("Giorni NON disponibili")
     for r in range(2, ws.max_row + 1):
         cog = ws.cell(row=r, column=i_cog + 1).value
         if cog in ORE_CONSECUTIVE:
             ws.cell(row=r, column=i_cons + 1).value = "SI"
+        if cog in ORE_SEPARATE:
+            ws.cell(row=r, column=i_cons + 1).value = "NO"
         if cog in GIORNO_UNICO:
             ws.cell(row=r, column=i_unico + 1).value = "SI"
         if cog in GIORNI_NON_DISPONIBILI:
@@ -224,7 +227,8 @@ def main(uscita: Path) -> None:
     for d in righe_docenti:
         print(f"    {d['nome']:10s} {d['ore']:2d} ore su {d['giorni'] * N_ORE:2d} fasce disponibili"
               + (f"  (di cui {d['ore_accomp']} di accompagnamento)" if d["ore_accomp"] else ""))
-    print(f"  eccezioni: ore consecutive {sorted(ORE_CONSECUTIVE)}, giorno unico {sorted(GIORNO_UNICO)}, "
+    print(f"  eccezioni: 1° strumento attaccato SI {sorted(ORE_CONSECUTIVE)} / NO {sorted(ORE_SEPARATE)}, "
+          f"giorno unico {sorted(GIORNO_UNICO)}, "
           f"giorni vietati {GIORNI_NON_DISPONIBILI}")
 
 

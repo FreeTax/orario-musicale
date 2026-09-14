@@ -52,13 +52,13 @@ def _riga(colonne: list[str], valori: dict) -> list[str]:
 
 
 def stud(cognome, classe=1, nome="MARIO", km=None, s1="PIANOFORTE", d1="Bianchi",
-         s2="VIOLINO", d2="Verdi", cons="NO", unico="NO", giorni_no="", note="",
+         s2="VIOLINO", d2="Verdi", cons="", unico="NO", giorni_no="", note="",
          comune="", indirizzo="", civico="") -> dict:
     return {
         "Classe": classe, "Cognome": cognome, "Nome": nome, "Comune": comune,
         "Indirizzo": indirizzo, "Civico": civico, "KM": "" if km is None else km,
         "Strumento 1": s1, "Docente 1": d1, "Strumento 2": s2, "Docente 2": d2,
-        "Ore consecutive (SI/NO)": cons, "Giorno unico (SI/NO)": unico,
+        "1° strumento attaccato (SI/NO)": cons, "Giorno unico (SI/NO)": unico,
         "Giorni NON disponibili": giorni_no, "Note": note,
     }
 
@@ -462,7 +462,7 @@ class TestControlli(Caso):
                      docenti=[doc("Bianchi", tutte()), doc("Verdi", tutte())],
                      gruppi=[gruppo(1, "Verdi", "Rossi", "Neri")])
         testo = "\n".join(str(a) for a in controlli.controlla(d2))
-        self.assertIn("Ore consecutive = SI ma la classe ha una sola ora di 1° strumento", testo)
+        self.assertIn("ma la classe ha una sola ora di 1° strumento", testo)
 
     def test_avviso_a_oltre_ore_accomp(self):
         d = dati_di(studenti=[stud("ROSSI")],
@@ -520,6 +520,9 @@ def controlla_invarianti(caso: unittest.TestCase, orario) -> None:
             a, b = sorted((l for l in mie if l.tipo == TIPO_STRUM1), key=lambda l: l.fascia)
             caso.assertEqual((a.giorno, b.ora), (b.giorno, a.ora + 1))
             caso.assertTrue(b.due_ore and not a.due_ore)
+        if s.primo_separato and h1 == 2:
+            a, b = sorted((l for l in mie if l.tipo == TIPO_STRUM1), key=lambda l: l.fascia)
+            caso.assertNotEqual(a.giorno, b.giorno, f"{s.id}: 1° strumento attaccato = NO")
         caso.assertLessEqual(orario.rientri_di(s.id), dati.parametri.max_rientri_vicini)
     # docenti: una lezione per fascia, solo fasce con X (o A per l'accompagnamento)
     visti = set()
@@ -741,6 +744,24 @@ class TestAbbinamentiFissi(Caso):
         s1 = sorted(l.fascia for l in o.lezioni if l.tipo == TIPO_STRUM1)
         self.assertEqual(s1, [fascia(0, 0), fascia(1, 0)])
         controlla_invarianti(self, o)
+
+    def test_primo_strumento_attaccato_no_in_giorni_diversi(self):
+        """«1° strumento attaccato = NO»: le 2 ore in due giorni diversi, mai una di seguito all'altra."""
+        d = dati_di(studenti=[stud("ROSSI", cons="NO")],
+                    docenti=[doc("Bianchi", tutte()), doc("Verdi", tutte())],
+                    timeout=10)
+        controlli.controlla(d)
+        o = motore.calcola(d)
+        a, b = sorted((l for l in o.lezioni if l.tipo == TIPO_STRUM1), key=lambda l: l.fascia)
+        self.assertNotEqual(a.giorno, b.giorno)
+        controlla_invarianti(self, o)
+
+    def test_primo_strumento_attaccato_no_con_un_giorno_solo(self):
+        """Se il docente ha un giorno solo, «NO» è impossibile e il calcolo si ferma spiegandolo."""
+        with self.assertRaises(ProblemiError) as e:
+            controlli.controlla(dati_di(studenti=[stud("ROSSI", cons="NO")],
+                                        docenti=[doc("Bianchi", tutte(giorni=[0])), doc("Verdi", tutte())]))
+        self.assertIn("giorni diversi", str(e.exception))
 
     def test_laboratorio_lmi_fissato_nel_pomeriggio(self):
         f = fascia(2, 0)  # Mercoledì 13:30

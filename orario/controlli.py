@@ -157,9 +157,10 @@ def controlla(dati: DatiInput) -> list[Problema]:
             avv(dove, f"L'indirizzo «{s.indirizzo_completo}» non è sulle mappe: i tempi dei mezzi sono calcolati "
                       "dal centro del comune, quindi approssimati.",
                 "indirizzi non trovati: tempi presi dal centro del comune")
-        if s.ore_consecutive and h1 != 2:
-            avv(dove, "Ore consecutive = SI ma la classe ha una sola ora di 1° strumento: ignorato.",
-                "richieste di ore consecutive ignorate")
+        if s.primo_attaccato is not None and h1 != 2:
+            avv(dove, f"«1° strumento attaccato = {'SI' if s.primo_attaccato else 'NO'}» ma la classe ha una "
+                      "sola ora di 1° strumento: ignorato.",
+                "richieste sulle 2 ore di 1° strumento ignorate")
         if len(s.giorni_non_disp) >= 5:
             err(dove, "Lo studente non è disponibile in nessun giorno.")
         libere = [f for f in range(N_FASCE) if s.libero(f)]
@@ -383,7 +384,13 @@ def controlla(dati: DatiInput) -> list[Problema]:
             if ore == 2 and s.ore_consecutive:
                 coppie = [f for f in fasce if f % N_ORE < N_ORE - 1 and (f + 1) in fasce]
                 if not coppie:
-                    err(dove, f"Ore consecutive = SI ma il docente {doc_nome} non ha due fasce consecutive libere nello stesso giorno.")
+                    err(dove, f"«1° strumento attaccato = SI» ma il docente {doc_nome} non ha due fasce "
+                              "consecutive libere nello stesso giorno.")
+            if ore == 2 and s.primo_separato:
+                giorni_utili = {f // N_ORE for f in fasce}
+                if len(giorni_utili) < 2:
+                    err(dove, f"«1° strumento attaccato = NO» ma con il docente {doc_nome} resta un giorno solo "
+                              "possibile: le 2 ore non possono stare in giorni diversi.")
         if s.giorno_unico:
             # esiste un giorno in cui tutti i suoi docenti hanno disponibilità?
             docs = [docenti[n] for n in (s.doc1, s.doc2) if n in docenti]

@@ -54,8 +54,9 @@ Nel foglio **Abbinamenti fissi** si scrivono le lezioni già decise (docente, st
 programma le blocca e costruisce il resto dell'orario intorno. Al posto dello studente si può mettere il nome
 di un **laboratorio del foglio LMI**: in quell'ora restano occupati il docente e tutti i suoi ragazzi.
 
-Le **2 ore di 1° strumento** non sono per forza attaccate: se le si vuole di seguito si scrivono due righe su
-due ore consecutive negli abbinamenti fissi (oppure si segna «Ore consecutive = SI» nel foglio Studenti).
+Le **2 ore di 1° strumento** (classi 1ª, 2ª e 5ª) si governano con la colonna **«1° strumento attaccato»** del
+foglio Studenti: **SI** = una di seguito all'altra, **NO** = in due giorni diversi, **vuoto** = decide il
+programma. In alternativa si fissano a mano, due righe su due ore consecutive negli abbinamenti fissi.
 
 **Non derogabile**: lezioni solo dove il docente è disponibile; un docente e un ragazzo mai in due posti
 nella stessa ora; tutti i membri di un gruppo di musica da camera nella stessa ora; giorni vietati per

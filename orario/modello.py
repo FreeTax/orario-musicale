@@ -42,7 +42,7 @@ class Studente:
     doc1: str
     strum2: str
     doc2: str
-    ore_consecutive: bool = False
+    primo_attaccato: bool | None = None  # SI = le 2 ore di 1° strumento attaccate, NO = in giorni diversi
     giorno_unico: bool = False
     giorni_non_disp: set[int] = field(default_factory=set)  # indici 0..4
     fasce_non_disp: set[int] = field(default_factory=set)   # singole ore occupate, indici 0..19
@@ -52,6 +52,16 @@ class Studente:
     indirizzo: str = ""
     civico: str = ""
     trasporto: Trasporto | None = None  # riempito da "Aggiorna trasporti" (foglio Trasporti)
+
+    @property
+    def ore_consecutive(self) -> bool:
+        """Le 2 ore di 1° strumento devono essere una di seguito all'altra."""
+        return self.primo_attaccato is True
+
+    @property
+    def primo_separato(self) -> bool:
+        """Le 2 ore di 1° strumento devono stare in giorni diversi."""
+        return self.primo_attaccato is False
 
     @property
     def indirizzo_completo(self) -> str:

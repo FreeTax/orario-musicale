@@ -23,10 +23,10 @@ ESEMPIO = "ESEMPIO – cancellare"
 
 COLONNE_STUDENTI = ["Classe", "Cognome", "Nome",
                     "Strumento 1", "Docente 1", "Strumento 2", "Docente 2",
-                    "Ore consecutive (SI/NO)", "Giorno unico (SI/NO)", "Giorni NON disponibili",
+                    "1° strumento attaccato (SI/NO)", "Giorno unico (SI/NO)", "Giorni NON disponibili",
                     "Comune", "Indirizzo", "Civico", "KM", "Note"]
 LARGHEZZE_STUDENTI = {"Classe": 7, "Cognome": 22, "Nome": 22, "Strumento 1": 15, "Docente 1": 16,
-                      "Strumento 2": 15, "Docente 2": 16, "Ore consecutive (SI/NO)": 13,
+                      "Strumento 2": 15, "Docente 2": 16, "1° strumento attaccato (SI/NO)": 17,
                       "Giorno unico (SI/NO)": 13, "Giorni NON disponibili": 17, "Comune": 20,
                       "Indirizzo": 26, "Civico": 8, "KM": 7, "Note": 30}
 COLONNE_DOCENTI = (["Docente", "Strumento/i"] + COLONNE_AULE + ["Ore accompagnamento"]
@@ -56,7 +56,8 @@ ISTRUZIONI = [
     "FOGLIO 'Studenti' – un rigo per ragazzo.",
     "  Classe: 1–5.  Docente 1 / Docente 2: devono coincidere con un nome del foglio 'Docenti' (menu a tendina).",
     "  Per la classe 5 il 2° strumento resta vuoto.",
-    "  Ore consecutive = SI se le 2 ore di 1° strumento devono essere una di seguito all'altra (solo classi 1, 2, 5).",
+    "  1° strumento attaccato (solo classi 1, 2, 5, che hanno 2 ore): SI = le due ore una di seguito all'altra,",
+    "  NO = in due giorni diversi, casella vuota = decide il programma.",
     "  Giorno unico = SI se il ragazzo deve rientrare un solo giorno a settimana.",
     "  Giorni NON disponibili: es. 'Mar, Gio' se il ragazzo non può venire quei pomeriggi. Vuoto = tutti i giorni possibili.",
     "  Comune, Indirizzo, Civico: per calcolare i tempi di ritorno a casa con i mezzi (menu Orario → Aggiorna trasporti).",
@@ -88,7 +89,7 @@ ISTRUZIONI = [
     "  Nella colonna Studente si può scrivere anche il nome di un LABORATORIO del foglio LMI (tipo 'Laboratorio LMI'):",
     "  in quell'ora vengono occupati il docente e tutti i ragazzi del laboratorio. Il docente si può lasciare vuoto.",
     "  Le 2 ore di 1° strumento non sono per forza attaccate: se le vuoi di seguito, mettile qui in due righe",
-    "  su due ore consecutive (oppure segna 'Ore consecutive = SI' nel foglio Studenti).",
+    "  su due ore consecutive (oppure segna '1° strumento attaccato = SI' nel foglio Studenti).",
     "",
     "FOGLIO 'LMI' – laboratori di musica d'insieme (2 ore, orario del MATTINO). Un rigo per laboratorio.",
     "  Il programma NON li calcola: li ricopia così come sono in una pagina dell'orario. Se però un",
@@ -155,7 +156,7 @@ def costruisci_workbook(studenti: Iterable[dict] = (), docenti: Iterable[dict] =
             "Classe": s["classe"], "Cognome": s["cognome"], "Nome": s["nome"],
             "Strumento 1": s.get("strum1", ""), "Docente 1": s.get("doc1", ""),
             "Strumento 2": s.get("strum2", ""), "Docente 2": s.get("doc2", ""),
-            "Ore consecutive (SI/NO)": s.get("ore_consecutive", "NO"),
+            "1° strumento attaccato (SI/NO)": s.get("primo_attaccato", ""),
             "Giorno unico (SI/NO)": s.get("giorno_unico", "NO"),
             "Giorni NON disponibili": s.get("giorni_non_disp", ""),
             "Comune": s.get("comune", ""), "Indirizzo": s.get("indirizzo", ""),
@@ -192,7 +193,7 @@ def costruisci_workbook(studenti: Iterable[dict] = (), docenti: Iterable[dict] =
 
     dv = DataValidation(type="list", formula1='"SI,NO"', allow_blank=True)
     ws.add_data_validation(dv)
-    dv.add(f"{lettera('Ore consecutive (SI/NO)')}2:{lettera('Giorno unico (SI/NO)')}{fondo}")
+    dv.add(f"{lettera(COLONNE_STUDENTI[7])}2:{lettera('Giorno unico (SI/NO)')}{fondo}")
     dv = DataValidation(type="list", formula1="=Docenti!$A$2:$A$80", allow_blank=True)
     ws.add_data_validation(dv)
     dv.add(f"{lettera('Docente 1')}2:{lettera('Docente 1')}{fondo}")
