@@ -28,7 +28,7 @@ from dataclasses import dataclass, field
 from ortools.sat.python import cp_model
 
 from .costanti import (
-    GIORNI_LUNGHI, N_FASCE, N_GIORNI, N_ORE, ORE, TIPO_ACCOMP, TIPO_LMC, TIPO_STRUM1,
+    GIORNI_LUNGHI, N_FASCE, N_GIORNI, N_ORE, ORE, TIPO_ACCOMP, TIPO_LMC, TIPO_LMI, TIPO_STRUM1,
     TIPO_STRUM2, fascia, giorno_ora, nome_fascia,
 )
 from .modello import DatiInput, Docente, Lezione, Orario, Problema, ProblemiError, Studente
@@ -55,6 +55,7 @@ _NOME_TIPO = {
     TIPO_STRUM1: "1° strumento",
     TIPO_STRUM2: "2° strumento",
     TIPO_LMC: "musica da camera",
+    TIPO_LMI: "laboratorio d'insieme",
     TIPO_ACCOMP: "accompagnamento",
 }
 
@@ -71,6 +72,8 @@ class _Unita:
     fasce: list[int] = field(default_factory=list)   # fasce ammesse (dominio)
     seguente: int | None = None   # idx della seconda ora consecutiva (solo sulla prima)
     seconda: bool = False         # è la seconda ora di una coppia consecutiva
+    nome: str = ""                # nome del laboratorio, per le unità LMI
+    fissata: bool = False         # bloccata in una fascia dal foglio degli abbinamenti fissi
 
     def descrizione(self, dati: DatiInput, n: int = 1) -> str:
         if self.tipo == TIPO_ACCOMP:
@@ -78,6 +81,8 @@ class _Unita:
                     else f"{n} ore di accompagnamento del docente {self.docente}")
         if self.tipo == TIPO_LMC:
             return f"lezione di musica da camera del gruppo {self.gruppo} con il docente {self.docente}"
+        if self.tipo == TIPO_LMI:
+            return f"laboratorio {self.nome} con il docente {self.docente}"
         return (f"ora di {_NOME_TIPO[self.tipo]} con il docente {self.docente}" if n == 1
                 else f"{n} ore di {_NOME_TIPO[self.tipo]} con il docente {self.docente}")
 
@@ -102,6 +107,11 @@ def _blocca_abbinamenti(dati: DatiInput, unita: list[_Unita]) -> None:
     bloccate: set[int] = set()
     problemi: list[Problema] = []
     for ab in dati.abbinamenti:
+        if ab.tipo == TIPO_LMI and ab.fascia >= 0 and ab.studenti:
+            # il laboratorio non fa parte delle ore da distribuire: esiste solo perché è stato fissato qui
+            unita.append(_Unita(len(unita), ab.docente, TIPO_LMI, list(ab.studenti),
+                                fasce=[ab.fascia], nome=ab.laboratorio, fissata=True))
+            continue
         if not ab.studente or not ab.tipo or ab.fascia < 0:
             continue
         candidate = [u for u in unita
@@ -126,10 +136,12 @@ def _blocca_abbinamenti(dati: DatiInput, unita: list[_Unita]) -> None:
                 "il docente non è libero in quell'ora, oppure servono due ore consecutive che non ci stanno."))
             continue
         u.fasce = fasce
+        u.fissata = True
         bloccate.add(u.idx)
         if u.seguente is not None:
             seconda = next(v for v in unita if v.idx == u.seguente)
             seconda.fasce = [ab.fascia + 1]
+            seconda.fissata = True
             bloccate.add(seconda.idx)
     if problemi:
         raise ProblemiError(problemi)
@@ -325,11 +337,13 @@ class _Modello:
                     occ_s.append(v)
                 else:
                     occ_s.append(0)
-            # simmetria: due ore di 1° strumento non consecutive sono intercambiabili
+            # simmetria: due ore di 1° strumento non consecutive sono intercambiabili.
+            # Non si applica se una delle due è stata fissata a mano: l'ordine lo decide il foglio.
             if not self.diagnosi:
                 s1 = [u for u in unita_s if u.tipo == TIPO_STRUM1 and u.seguente is None and not u.seconda]
-                for a, b in zip(s1, s1[1:]):
-                    m.add(self._pos(a) < self._pos(b))
+                if not any(u.fissata for u in s1):
+                    for a, b in zip(s1, s1[1:]):
+                        m.add(self._pos(a) < self._pos(b))
             # le ore individuali stanno volentieri nello stesso pomeriggio della musica da camera:
             # senza buchi, "stesso giorno" vuol dire attaccate, prima o dopo la lezione di gruppo
             u_lmc = next((u for u in unita_s if u.tipo == TIPO_LMC), None)
@@ -637,7 +651,7 @@ def _estrai_lezioni(modello: _Modello, solver: cp_model.CpSolver, unita: list[_U
         if f is None:
             raise RuntimeError(f"Errore interno del motore: {u.descrizione(modello.dati)} senza fascia.")
         lezioni.append(Lezione(docente=u.docente, fascia=f, tipo=u.tipo, studenti=list(u.studenti),
-                               gruppo=u.gruppo, due_ore=u.seconda))
+                               gruppo=u.gruppo, due_ore=u.seconda, nome=u.nome))
     return lezioni  # stesso ordine delle unità (serve per il confronto con l'orario precedente)
 
 

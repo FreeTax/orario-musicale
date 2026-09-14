@@ -85,9 +85,14 @@ ISTRUZIONI = [
     "FOGLIO 'Abbinamenti fissi' – lezioni già decise, che il programma deve rispettare così come sono.",
     "  Una riga per lezione: docente, studente, tipo (1° strumento, 2° strumento, musica da camera), giorno e ora.",
     "  Il tipo si può lasciare vuoto: viene dedotto dal docente. Serve per bloccare gli incastri già concordati.",
+    "  Nella colonna Studente si può scrivere anche il nome di un LABORATORIO del foglio LMI (tipo 'Laboratorio LMI'):",
+    "  in quell'ora vengono occupati il docente e tutti i ragazzi del laboratorio. Il docente si può lasciare vuoto.",
+    "  Le 2 ore di 1° strumento non sono per forza attaccate: se le vuoi di seguito, mettile qui in due righe",
+    "  su due ore consecutive (oppure segna 'Ore consecutive = SI' nel foglio Studenti).",
     "",
     "FOGLIO 'LMI' – laboratori di musica d'insieme (2 ore, orario del MATTINO). Un rigo per laboratorio.",
-    "  Il programma NON li calcola: li ricopia così come sono in una pagina dell'orario.",
+    "  Il programma NON li calcola: li ricopia così come sono in una pagina dell'orario. Se però un",
+    "  laboratorio si tiene nel pomeriggio, lo si mette nel foglio 'Abbinamenti fissi' con giorno e ora.",
     "  Studenti: 'Cognome Nome' separati da virgola. Anche qui il nome viene aggiunto da solo quando non ci sono omonimi.",
     "",
     "FOGLIO 'Parametri' – poche regole generali (max rientri, tempo di calcolo). Di norma non serve toccarlo.",
@@ -268,14 +273,15 @@ def costruisci_workbook(studenti: Iterable[dict] = (), docenti: Iterable[dict] =
 
     # Abbinamenti fissi: lezioni già decise, che il programma deve rispettare
     ws = wb.create_sheet(FOGLIO_ABBINAMENTI)
-    _intesta(ws, COLONNE_ABBINAMENTI, {1: 20, 2: 26, 3: 18, 4: 12, 5: 10, 6: 40})
+    _intesta(ws, COLONNE_ABBINAMENTI, {1: 22, 2: 34, 3: 20, 4: 14, 5: 10, 6: 44})
     if esempi:
         ws.append(["Verdi", "Neri Anna", "2° strumento", "Mercoledì", "14:30", ESEMPIO])
         _grigia(ws, 2, len(COLONNE_ABBINAMENTI))
     fondo_ab = max(ws.max_row, 2) + 200
     for colonna, valori in (("A", "=Docenti!$A$2:$A$80"),
                             ("B", f"=Studenti!${col_cognome}$2:${col_cognome}${n_stud + 200}")):
-        dv = DataValidation(type="list", formula1=valori, allow_blank=True)
+        # solo un suggerimento: nella colonna Studente si può scrivere anche un laboratorio LMI
+        dv = DataValidation(type="list", formula1=valori, allow_blank=True, showErrorMessage=False)
         ws.add_data_validation(dv)
         dv.add(f"{colonna}2:{colonna}{fondo_ab}")
     for colonna, valori in (("C", list(NOMI_TIPO)), ("D", list(GIORNI)), ("E", list(ORE))):

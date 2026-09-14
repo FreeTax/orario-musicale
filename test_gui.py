@@ -23,7 +23,7 @@ import openpyxl  # noqa: E402
 
 import orario.trasporti as mod_trasporti  # noqa: E402
 from orario import gui  # noqa: E402
-from orario.costanti import FOGLI_DATI, FOGLIO_DOCENTI, FOGLIO_ORARIO, FOGLIO_TRASPORTI, GIORNI_LUNGHI  # noqa: E402
+from orario.costanti import FOGLI_DATI, FOGLIO_ABBINAMENTI, FOGLIO_DOCENTI, FOGLIO_ORARIO, FOGLIO_TRASPORTI, GIORNI_LUNGHI  # noqa: E402
 from orario.modello import Trasporto  # noqa: E402
 
 import customtkinter as ctk  # noqa: E402
@@ -555,6 +555,37 @@ class TestGriglie(BaseGui):
 
 
 # ── 4. Menu e scorciatoie ────────────────────────────────────────────────────
+
+    def test_12b_abbinamenti_suggerimenti_e_larghezze(self):
+        """Negli abbinamenti fissi si suggeriscono anche i laboratori LMI, e le colonne non sono strette."""
+        f = self.copia_esempio()
+
+        def script(app):
+            app.apri_file(f)
+            yield
+            app._aggiorna_suggerimenti()
+            yield
+            sheet = app.fogli[FOGLIO_ABBINAMENTI]
+            laboratori = app._elenco_lmi()
+            self.assertTrue(laboratori, "il file di esempio ha dei laboratori LMI")
+            colonna = self.col(sheet, "Studente")
+            elenco = app._elenco_studenti()[0]
+            # l'elenco suggerito nella colonna Studente comincia con i laboratori
+            self.assertEqual((laboratori + elenco)[:len(laboratori)], laboratori)
+            minime = app.LARGHEZZE_MINIME[FOGLIO_ABBINAMENTI]
+            for i, h in enumerate(sheet.headers()):
+                for prefisso, minima in minime.items():
+                    if str(h).strip().lower().startswith(prefisso):
+                        self.assertGreaterEqual(sheet.column_width(i), minima, f"colonna {h} troppo stretta")
+                        break
+            # il nome di un laboratorio non viene "completato" come se fosse un cognome
+            sheet.set_cell_data(0, colonna, laboratori[0])
+            app._completa_nomi(FOGLIO_ABBINAMENTI, 0, colonna)
+            yield
+            self.assertEqual(sheet.get_cell_data(0, colonna), laboratori[0])
+            yield
+        self.esegui(script)
+
 
 class TestMenu(BaseGui):
 

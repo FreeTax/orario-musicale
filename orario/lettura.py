@@ -19,7 +19,7 @@ from datetime import datetime
 from .costanti import (
     COLONNE_AULE, FASCE, FOGLI_DATI, FOGLI_FACOLTATIVI, FOGLIO_ABBINAMENTI, FOGLIO_DOCENTI, FOGLIO_GRUPPI,
     FOGLIO_IMPEGNI, FOGLIO_LMI, FOGLIO_ORARIO, FOGLIO_PARAMETRI, FOGLIO_STUDENTI, FOGLIO_TRASPORTI, GIORNI,
-    GIORNI_LUNGHI, NOMI_TIPO, ORE, ORE_FINE, fascia,
+    GIORNI_LUNGHI, NOMI_TIPO, ORE, ORE_FINE, fascia, tipo_da_testo,
 )
 from .modello import (
     Abbinamento, DatiInput, Docente, GruppoLMC, LaboratorioLMI, Lezione, Orario, Parametri, Problema,
@@ -357,14 +357,15 @@ def costruisci_dati(tabelle: dict[str, Tabella], percorso: Path | None = None) -
     # LMI
     tl = tabelle[FOGLIO_LMI]
     lmi: list[LaboratorioLMI] = []
-    for r in tl.righe:
+    for i, r in enumerate(tl.righe, start=2):
         v = lambda p: tl.valore(r, p)  # noqa: E731
         if not any(r):
             continue
         if _nota_di_esempio(v("Note")) and v("Laboratorio").strip().upper() == "LMI ARCHI":
             continue
         lmi.append(LaboratorioLMI(nome=v("Laboratorio"), classi=v("Classi"), docente=v("Docente"),
-                                  aula=v("Aula"), giorno_ora=v("Giorno"), studenti=v("Studenti"), note=v("Note")))
+                                  aula=v("Aula"), giorno_ora=v("Giorno"), studenti=v("Studenti"),
+                                  note=v("Note"), riga=i))
 
     # Impegni degli studenti: la casella segnata è un'ora in cui il ragazzo NON c'è
     ti = tabelle[FOGLIO_IMPEGNI]
@@ -421,7 +422,7 @@ def costruisci_dati(tabelle: dict[str, Tabella], percorso: Path | None = None) -
                                      f"Ora «{ora_txt}» non riconosciuta: sono ammesse {', '.join(ORE)}."))
             continue
         tipo_txt = v("Tipo")
-        tipo = NOMI_TIPO.get(tipo_txt.strip().capitalize(), NOMI_TIPO.get(tipo_txt.strip(), ""))
+        tipo = tipo_da_testo(tipo_txt)
         if tipo_txt.strip() and not tipo:
             problemi.append(Problema("errore", f"{FOGLIO_ABBINAMENTI}, riga {i}",
                                      f"Tipo di lezione «{tipo_txt}» non riconosciuto: "

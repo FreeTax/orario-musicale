@@ -56,7 +56,25 @@ FOGLI_DATI = [FOGLIO_STUDENTI, FOGLIO_IMPEGNI, FOGLIO_DOCENTI, FOGLIO_GRUPPI, FO
 FOGLI_FACOLTATIVI = {FOGLIO_IMPEGNI, FOGLIO_ABBINAMENTI}  # se mancano si creano vuoti: i file di prima non li hanno
 
 # Come si chiamano i tipi di lezione nel foglio degli abbinamenti
-NOMI_TIPO = {"1° strumento": "S1", "2° strumento": "S2", "Musica da camera": "LMC"}
+NOMI_TIPO = {"1° strumento": "S1", "2° strumento": "S2", "Musica da camera": "LMC",
+             "Laboratorio LMI": "LMI"}
+# scritture accettate oltre a quelle sopra (tutto maiuscolo, senza spazi doppi)
+_ALIAS_TIPO = {"S1": "S1", "1": "S1", "1°": "S1", "1 STRUMENTO": "S1", "PRIMO STRUMENTO": "S1",
+               "S2": "S2", "2": "S2", "2°": "S2", "2 STRUMENTO": "S2", "SECONDO STRUMENTO": "S2",
+               "LMC": "LMC", "MUSICA DA CAMERA": "LMC",
+               "LMI": "LMI", "LABORATORIO": "LMI", "LABORATORIO LMI": "LMI",
+               "LABORATORIO D'INSIEME": "LMI"}
+
+
+def tipo_da_testo(testo: str) -> str:
+    """Il tipo di lezione scritto nel foglio → S1 / S2 / LMC / LMI; "" se non si riconosce."""
+    t = " ".join((testo or "").replace("’", "'").split()).upper()
+    if not t:
+        return ""
+    for nome, codice in NOMI_TIPO.items():
+        if nome.upper() == t:
+            return codice
+    return _ALIAS_TIPO.get(t, "")
 FOGLIO_ORARIO = "Orario calcolato"  # scritto dal programma dopo il calcolo, riusato al ricalcolo
 FOGLIO_TRASPORTI = "Trasporti"  # scritto da "Aggiorna trasporti": minuti di ritorno a casa per fascia
 
@@ -68,6 +86,7 @@ MINUTI_SENZA_MEZZO = 300  # oltre questi minuti (o senza itinerario) la fascia �
 TIPO_STRUM1 = "S1"
 TIPO_STRUM2 = "S2"
 TIPO_LMC = "LMC"
+TIPO_LMI = "LMI"   # laboratorio d'insieme: normalmente al mattino, si colloca solo se fissato a mano
 TIPO_ACCOMP = "ACC"
 
 ETICHETTA_ACCOMP = "Pianista accomp."

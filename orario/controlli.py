@@ -12,14 +12,15 @@ from collections import Counter, defaultdict
 
 from .costanti import (
     CLASSI_LMC, FOGLIO_ABBINAMENTI, FOGLIO_DOCENTI, FOGLIO_GRUPPI, FOGLIO_LMI, FOGLIO_STUDENTI,
-    MAX_GRUPPO_LMC, MIN_GRUPPO_LMC, N_FASCE, N_ORE, ORE_PER_CLASSE, TIPO_LMC, TIPO_STRUM1, TIPO_STRUM2,
+    MAX_GRUPPO_LMC, MIN_GRUPPO_LMC, N_FASCE, N_ORE, ORE_PER_CLASSE, TIPO_LMC, TIPO_LMI, TIPO_STRUM1,
+    TIPO_STRUM2,
     nome_fascia,
 )
 from .modello import DatiInput, Problema, ProblemiError, Studente
 
 
 _DESCRIZIONE_TIPO = {TIPO_STRUM1: "l'ora di 1° strumento", TIPO_STRUM2: "l'ora di 2° strumento",
-                     TIPO_LMC: "la musica da camera"}
+                     TIPO_LMC: "la musica da camera", TIPO_LMI: "il laboratorio d'insieme"}
 
 
 def _norm(s: str) -> str:
@@ -83,6 +84,9 @@ def _ore_richieste(dati: DatiInput) -> Counter:
     for g in dati.gruppi:
         if g.docente:
             ore[g.docente] += 1
+    for ab in dati.abbinamenti:  # i laboratori LMI fissati nel pomeriggio occupano un'ora del docente
+        if ab.tipo == TIPO_LMI and ab.docente:
+            ore[ab.docente] += 1
     return ore
 
 
@@ -207,12 +211,63 @@ def controlla(dati: DatiInput) -> list[Problema]:
     occupati_stud: dict[tuple[str, int], str] = {}
     for ab in dati.abbinamenti:
         dove = f"{FOGLIO_ABBINAMENTI}, riga {ab.riga}"
+        # al posto del ragazzo si può scrivere il nome di un laboratorio LMI: allora si fissa tutto il gruppo
+        lab = dati.laboratorio(ab.studente_raw) if ab.tipo in ("", TIPO_LMI) else None
+        if ab.tipo == TIPO_LMI and lab is None:
+            err(dove, f"Il laboratorio '{ab.studente_raw}' non è nel foglio {FOGLIO_LMI}: "
+                      "nella colonna Studente va il nome esatto del laboratorio.")
+            continue
+        if lab is not None and not ab.docente:
+            ab.docente = lab.docente  # se non è scritto, è quello del laboratorio
         etichetta = f"{ab.docente or '?'} con {ab.studente_raw or '?'} {nome_fascia(ab.fascia)}"
         if not ab.docente:
             err(dove, "Manca il docente.")
             continue
         if ab.docente not in docenti:
             err(dove, f"Il docente '{ab.docente}' non è nel foglio {FOGLIO_DOCENTI}.")
+            continue
+        if lab is not None:
+            ab.tipo, ab.laboratorio = TIPO_LMI, lab.nome
+            ids: list[str] = []
+            for nome_st in lab.nomi_studenti:
+                s_lab, motivo = risolvi_studente(nome_st, dati.studenti)
+                if s_lab is None:
+                    avv(dove, f"Nel laboratorio {lab.nome} il nome «{nome_st}» non corrisponde a nessuno studente "
+                              f"({motivo}): quel ragazzo non viene tenuto occupato in quell'ora.",
+                        "nomi dei laboratori LMI non riconosciuti")
+                    continue
+                if motivo:
+                    avv(dove, f"{nome_st}: {motivo}.", "nomi riconosciuti per somiglianza")
+                ids.append(s_lab.id)
+            ab.studenti = ids
+            if not ids:
+                err(dove, f"Del laboratorio {lab.nome} non si riconosce nessuno studente: "
+                          f"controllare la colonna Studenti nel foglio {FOGLIO_LMI}.")
+                continue
+            fermi = [dati.studente(i) for i in ids]
+            occupati_altrove = [x for x in fermi if x is not None and not x.libero(ab.fascia)]
+            if occupati_altrove:
+                err(dove, f"Il laboratorio {lab.nome} non può stare {nome_fascia(ab.fascia)}: "
+                          + ", ".join(x.cognome.title() for x in occupati_altrove)
+                          + " non può esserci in quell'ora (impegni o giorno escluso).")
+                continue
+            altro = occupati_doc.get((ab.docente, ab.fascia))
+            if altro:
+                err(dove, f"{ab.docente} ha già un altro abbinamento fisso {nome_fascia(ab.fascia)} ({altro}).")
+                continue
+            gia_presi = [x.cognome.title() for x in fermi if x is not None and (x.id, ab.fascia) in occupati_stud]
+            if gia_presi:
+                err(dove, f"{', '.join(gia_presi)} ha già un altro abbinamento fisso {nome_fascia(ab.fascia)}.")
+                continue
+            occupati_doc[(ab.docente, ab.fascia)] = etichetta
+            for i in ids:
+                occupati_stud[(i, ab.fascia)] = etichetta
+            d_lab = docenti[ab.docente]
+            if d_lab.disponibilita.get(ab.fascia) != "X":
+                d_lab.disponibilita[ab.fascia] = "X"
+                avv(dove, f"{ab.docente} non era dichiarato disponibile {nome_fascia(ab.fascia)}: "
+                          f"l'ora è stata aperta per il laboratorio {lab.nome}.",
+                    "ore aperte per rispettare un abbinamento fisso")
             continue
         st, motivo = risolvi_studente(ab.studente_raw, dati.studenti)
         if st is None:

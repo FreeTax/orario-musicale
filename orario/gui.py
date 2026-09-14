@@ -433,8 +433,9 @@ class App(ctk.CTk):
             FOGLIO_DOCENTI: "X nelle ore disponibili, A nelle ore di accompagnamento fissate, vuoto se non disponibile.",
             FOGLIO_IMPEGNI: "Al contrario dei docenti: la X segna l'ora in cui il ragazzo NON può venire. "
                             "Chi non ha impegni si lascia vuoto.",
-            FOGLIO_ABBINAMENTI: "Lezioni già decise che il programma deve rispettare. "
-                                "Il tipo si può lasciare vuoto: lo deduce dal docente.",
+            FOGLIO_ABBINAMENTI: "Lezioni già decise che il programma deve rispettare. Il tipo si può lasciare "
+                                "vuoto: lo deduce dal docente. Al posto dello studente si può mettere un "
+                                "laboratorio del foglio LMI.",
         }.get(nome, "Si lavora come in Excel: copia e incolla, Invio scende, Tab va a destra, tasto destro per le righe.")
         ctk.CTkLabel(comandi, text=suggerimento, text_color="gray45").pack(side="left", padx=16)
 
@@ -512,6 +513,14 @@ class App(ctk.CTk):
             self.lbl_stato.configure(text="Modifiche non salvate")
         self.after_idle(lambda: self._riga_libera_in_fondo(nome))
 
+    # larghezze minime (in pixel) per le colonne con il menu a tendina, che con il testo
+    # a filo risultano illeggibili: la freccina del menu si mangia metà cella
+    LARGHEZZE_MINIME = {
+        FOGLIO_ABBINAMENTI: {"docente": 190, "studente": 260, "tipo": 190, "giorno": 130, "ora": 110, "note": 300},
+        FOGLIO_GRUPPI: {"docente": 190, "studente": 220},
+        FOGLIO_LMI: {"docente": 170, "studenti": 420, "laboratorio": 190, "aula": 150, "giorno": 200},
+    }
+
     def _adatta_colonne(self, sheet: Sheet, nome: str) -> None:
         try:
             sheet.set_all_cell_sizes_to_text()
@@ -520,6 +529,16 @@ class App(ctk.CTk):
                 for i, h in enumerate(sheet.headers()):
                     if isinstance(h, str) and len(h) == 9 and h[3] == " " and ":" in h:
                         sheet.column_width(i, 48)
+            minime = self.LARGHEZZE_MINIME.get(nome)
+            if minime:
+                for i, h in enumerate(sheet.headers()):
+                    if not isinstance(h, str):
+                        continue
+                    titolo = h.strip().lower()
+                    for prefisso, minima in minime.items():
+                        if titolo.startswith(prefisso) and sheet.column_width(i) < minima:
+                            sheet.column_width(i, minima)
+                            break
         except Exception:
             pass
 
@@ -556,6 +575,15 @@ class App(ctk.CTk):
                 return nomi[0]
         return t
 
+    def _elenco_lmi(self) -> list[str]:
+        """I nomi dei laboratori: negli abbinamenti fissi si possono mettere al posto di uno studente."""
+        try:
+            tl = self.tabelle_correnti()[FOGLIO_LMI]
+        except Exception:
+            return []
+        return sorted({tl.valore(r, "Laboratorio").strip() for r in tl.righe
+                       if tl.valore(r, "Laboratorio").strip()})
+
     def _elenco_docenti(self) -> list[str]:
         try:
             td = self.tabelle_correnti()[FOGLIO_DOCENTI]
@@ -571,15 +599,16 @@ class App(ctk.CTk):
         """
         elenco, _ = self._elenco_studenti()
         docenti = self._elenco_docenti()
+        laboratori = self._elenco_lmi()
         if not elenco and not docenti:
             return
-        chiave = (tuple(elenco), tuple(docenti))
+        chiave = (tuple(elenco), tuple(docenti), tuple(laboratori))
         if chiave == self._elenco_suggerito:
             return
         # foglio → (inizio del nome della colonna, valori suggeriti)
         da_fare = {
             FOGLIO_GRUPPI: [("studente", elenco), ("docente", docenti)],
-            FOGLIO_ABBINAMENTI: [("studente", elenco), ("docente", docenti),
+            FOGLIO_ABBINAMENTI: [("studente", laboratori + elenco), ("docente", docenti),
                                  ("tipo", list(NOMI_TIPO)), ("giorno", list(GIORNI_LUNGHI)),
                                  ("ora", list(ORE))],
             FOGLIO_LMI: [("docente", docenti)],
@@ -623,10 +652,13 @@ class App(ctk.CTk):
         _, per_cognome = self._elenco_studenti()
         if not per_cognome:
             return
+        laboratori = {n.upper() for n in self._elenco_lmi()} if nome_foglio == FOGLIO_ABBINAMENTI else set()
         try:
             testo = str(sheet.get_cell_data(riga, colonna) or "")
             if not testo.strip():
                 return
+            if " ".join(testo.split()).upper() in laboratori:
+                return  # è il nome di un laboratorio, non un cognome da completare
             if nome_foglio == FOGLIO_LMI:
                 pezzi = [self._completa(x, per_cognome) for x in testo.split(",")]
                 nuovo = ", ".join(x for x in pezzi if x)

@@ -130,14 +130,16 @@ class GruppoLMC:
 
 @dataclass
 class Abbinamento:
-    """Lezione già decisa: quel docente con quel ragazzo in quel giorno e a quell'ora."""
+    """Lezione già decisa: quel docente con quel ragazzo (o con un laboratorio LMI) in quel giorno e a quell'ora."""
     docente: str
     studente: str = ""        # id "COGNOME NOME", risolto dai controlli
-    studente_raw: str = ""    # come scritto nel foglio
-    tipo: str = ""            # TIPO_STRUM1 / TIPO_STRUM2 / TIPO_LMC; vuoto = da dedurre
+    studente_raw: str = ""    # come scritto nel foglio: un ragazzo oppure il nome di un laboratorio LMI
+    tipo: str = ""            # TIPO_STRUM1 / TIPO_STRUM2 / TIPO_LMC / TIPO_LMI; vuoto = da dedurre
     fascia: int = -1          # 0..19
     note: str = ""
     riga: int = 0
+    laboratorio: str = ""     # nome del laboratorio, se è un LMI
+    studenti: list[str] = field(default_factory=list)  # id dei ragazzi del laboratorio
 
 
 @dataclass
@@ -147,8 +149,14 @@ class LaboratorioLMI:
     docente: str
     aula: str
     giorno_ora: str
-    studenti: str
+    studenti: str            # "Cognome Nome, Cognome Nome, …" come scritto nel foglio
     note: str = ""
+    riga: int = 0
+    studenti_id: list[str] = field(default_factory=list)  # risolti dai controlli, se serve collocarlo
+
+    @property
+    def nomi_studenti(self) -> list[str]:
+        return [n.strip() for n in (self.studenti or "").replace(";", ",").split(",") if n.strip()]
 
 
 @dataclass
@@ -182,6 +190,13 @@ class DatiInput:
         for s in self.studenti:
             if s.id == id_:
                 return s
+        return None
+
+    def laboratorio(self, nome: str) -> LaboratorioLMI | None:
+        cercato = " ".join((nome or "").upper().split())
+        for l in self.lmi:
+            if " ".join(l.nome.upper().split()) == cercato:
+                return l
         return None
 
     def gruppo_di(self, id_studente: str) -> GruppoLMC | None:
@@ -230,6 +245,7 @@ class Lezione:
     studenti: list[str] = field(default_factory=list)  # id studente; 1 per S1/S2, 2-5 per LMC, 0 per ACC
     gruppo: int | None = None  # numero gruppo LMC
     due_ore: bool = False  # seconda ora consecutiva della stessa lezione (S1 con ore_consecutive)
+    nome: str = ""  # nome del laboratorio, per le lezioni LMI
 
     @property
     def giorno(self) -> int:

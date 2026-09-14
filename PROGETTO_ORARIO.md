@@ -138,7 +138,7 @@ vanno rifatte o copiate; in futuro si può fare uno script di aggiornamento che 
 | Impegni studenti | Classe, Cognome, Nome + 20 colonne Lun 13:30 … Ven 16:30 (X = il ragazzo **non** può esserci), Note | vuoto; il pulsante «Copia i nomi dagli studenti» lo riempie |
 | Docenti | Docente, Strumento/i, **5 aule** (una per giorno), **Ore accompagnamento** (numero), 20 colonne Lun 13:30 … Ven 16:30 (X = disponibile, vuoto = no, A = ora di accompagnamento fissata a mano), **Ore dichiarate**, Note; in fondo la riga **TOTALE** | 21 docenti; aule dell'anno scorso; disponibilità **vuote** |
 | Gruppi LMC | Gruppo, Docente, Studente 1…5, Note | vuoto, con 2 righe di esempio grigie da cancellare; i gruppi li fornisce lo zio |
-| Abbinamenti fissi | Docente, Studente, Tipo di lezione, Giorno, Ora, Note | vuoto; le lezioni decise a mano, che il motore blocca |
+| Abbinamenti fissi | Docente, Studente (o un laboratorio del foglio LMI), Tipo di lezione, Giorno, Ora, Note | vuoto; le lezioni decise a mano, che il motore blocca |
 | LMI | Laboratorio, Classi, Docente, Aula, Giorno e ora (mattino), Studenti, Note | vuoto, con 1 riga di esempio; il programma non li calcola, li ricopia in output |
 | Parametri | Max rientri (2), max rientri chi abita vicino (3), soglia KM "vicino" (5), tempo massimo di calcolo (120 s), indirizzo della scuola, soglia minuti "vicino" (25) | valori proposti; indirizzo scuola da compilare |
 | Trasporti | scritto dal programma (Aggiorna trasporti): per studente, minuti/arrivo/mezzi per fascia | vuoto finché non si aggiorna |
@@ -390,6 +390,26 @@ i ragazzi (si può anche digitare); scrivendo solo il cognome, il nome viene agg
 sono omonimi, e negli LMI questo vale per ogni nome dell'elenco separato da virgole. Con gli omonimi (nei
 dati veri: Gori Camilla di 3ª e Gori Yvaine di 5ª) la cella resta come scritta, così è chi compila a
 scegliere. La verifica dei nomi al momento del calcolo accetta entrambe le forme.
+
+**Laboratori LMI negli abbinamenti fissi (14/9/2026, richiesta di Francesco)**: nella colonna Studente si
+può scrivere, al posto di un ragazzo, il nome di un laboratorio del foglio LMI (tipo «Laboratorio LMI»). Il
+programma occupa in quell'ora il docente e tutti i ragazzi del laboratorio, e la lezione compare nell'orario
+con il nome del laboratorio e l'elenco dei partecipanti. Il docente si può lasciare vuoto: si prende quello
+scritto nel foglio LMI. I laboratori restano fuori dal calcolo (sono al mattino) finché non vengono fissati
+così: è l'unico modo per portarli nel pomeriggio. Se un ragazzo del laboratorio ha un impegno in quell'ora, o
+se il laboratorio non esiste, il calcolo si ferma e lo dice; i nomi del foglio LMI che non corrispondono a
+nessuno studente diventano un avviso e quel ragazzo semplicemente non viene tenuto occupato.
+
+**Le due ore di 1° strumento non sono attaccate (14/9/2026, richiesta di Francesco)**: non lo sono mai state
+per regola (solo «Ore consecutive = SI» le lega), ma il foglio degli abbinamenti non permetteva di separarle
+davvero: fra due ore uguali il modello imponeva un ordine per rompere la simmetria, e fissando a mano la
+seconda prima della prima il calcolo diventava impossibile. Ora quella regola di simmetria salta appena una
+delle due ore è fissata: si possono mettere dove si vuole, anche in giorni diversi e in ordine sparso. Se le
+si vogliono di seguito, si scrivono due righe su due ore consecutive.
+
+**Griglia degli abbinamenti più larga (14/9/2026)**: le colonne si adattavano al testo, e con la freccina del
+menu a tendina restava mezza cella leggibile. Ora i fogli con i menu (Abbinamenti fissi, Gruppi LMC, LMI)
+hanno una larghezza minima per colonna.
 
 **Foglio «Abbinamenti fissi» (14/9/2026, richiesta di Francesco)**: la tabella dove si decidono a mano le
 lezioni già fissate — docente, studente, tipo di lezione, giorno, ora, note. Il motore le blocca prima di

@@ -29,7 +29,7 @@ from orario.costanti import (
     COLONNE_AULE,
     FASCE, FOGLIO_DOCENTI, FOGLIO_GRUPPI, FOGLIO_LMI, FOGLIO_PARAMETRI, FOGLIO_STUDENTI,
     FOGLIO_TRASPORTI, GIORNI, MINUTI_SENZA_MEZZO, N_GIORNI, N_ORE, ORE, TIPO_ACCOMP, TIPO_LMC,
-    TIPO_STRUM1, TIPO_STRUM2, fascia, giorno_ora,
+    TIPO_LMI, TIPO_STRUM1, TIPO_STRUM2, fascia, giorno_ora,
 )
 from orario.export import esporta_tutto
 from orario.lettura import Tabella
@@ -116,6 +116,13 @@ def abbinamento(docente, studente, giorno="Lunedì", ora="13:30", tipo="", note=
     """Riga del foglio Abbinamenti fissi."""
     return {"Docente": docente, "Studente": studente, "Tipo di lezione": tipo,
             "Giorno": giorno, "Ora": ora, "Note": note}
+
+
+def lab(nome, docente, *studenti, classi="1ª", aula="M9", quando="Martedì 4ª-5ª ora", note="") -> dict:
+    """Riga del foglio LMI."""
+    return {"Laboratorio": nome, "Classi": classi, "Docente": docente, "Aula": aula,
+            "Giorno e ora (mattino)": quando,
+            "Studenti (Cognome Nome, separati da virgola)": ", ".join(studenti), "Note": note}
 
 
 def impegno(cognome, nome="MARIO", classe=1, fasce=(), note="") -> dict:
@@ -691,6 +698,91 @@ class TestMotore(Caso):
         s1 = {l.studenti[0]: l for l in o.lezioni if l.tipo == TIPO_STRUM1}
         self.assertLessEqual(s1["LONTANO L"].ora, s1["VICINO V"].ora)
         controlla_invarianti(self, o)
+
+
+class TestAbbinamentiFissi(Caso):
+    """Il foglio delle lezioni già decise: ragazzi, laboratori LMI e ore di 1° strumento."""
+
+    def test_lezione_bloccata_nella_sua_fascia(self):
+        f = fascia(1, 2)  # Martedì 15:30
+        d = dati_di(studenti=[stud("ROSSI")],
+                    docenti=[doc("Bianchi", tutte(giorni=[0, 1])), doc("Verdi", tutte(giorni=[0, 1]))],
+                    abbinamenti=[abbinamento("Verdi", "Rossi", "Martedì", "15:30", "2° strumento")],
+                    timeout=10)
+        controlli.controlla(d)
+        o = motore.calcola(d)
+        s2 = [l for l in o.lezioni if l.tipo == TIPO_STRUM2]
+        self.assertEqual([l.fascia for l in s2], [f])
+        controlla_invarianti(self, o)
+
+    def test_due_ore_di_primo_strumento_lontane_e_in_ordine_sparso(self):
+        """Le 2 ore di 1° strumento non sono attaccate: si mettono dove dicono gli abbinamenti.
+
+        Le due righe sono scritte apposta al contrario (prima il venerdì, poi il lunedì)."""
+        d = dati_di(studenti=[stud("ROSSI")],
+                    docenti=[doc("Bianchi", tutte()), doc("Verdi", tutte())],
+                    abbinamenti=[abbinamento("Bianchi", "Rossi", "Venerdì", "16:30", "1° strumento"),
+                                 abbinamento("Bianchi", "Rossi", "Lunedì", "13:30", "1° strumento")],
+                    timeout=15)
+        controlli.controlla(d)
+        o = motore.calcola(d)
+        s1 = sorted(l.fascia for l in o.lezioni if l.tipo == TIPO_STRUM1)
+        self.assertEqual(s1, [fascia(0, 0), fascia(4, 3)])
+        controlla_invarianti(self, o)
+
+    def test_primo_strumento_puo_stare_in_giorni_diversi(self):
+        """Senza abbinamenti niente obbliga le 2 ore a essere attaccate: qui non potrebbero esserlo."""
+        d = dati_di(studenti=[stud("ROSSI")],
+                    docenti=[doc("Bianchi", [fascia(0, 0), fascia(1, 0)]),   # una sola ora al giorno
+                             doc("Verdi", tutte())],
+                    timeout=10)
+        controlli.controlla(d)
+        o = motore.calcola(d)
+        s1 = sorted(l.fascia for l in o.lezioni if l.tipo == TIPO_STRUM1)
+        self.assertEqual(s1, [fascia(0, 0), fascia(1, 0)])
+        controlla_invarianti(self, o)
+
+    def test_laboratorio_lmi_fissato_nel_pomeriggio(self):
+        f = fascia(2, 0)  # Mercoledì 13:30
+        d = dati_di(studenti=[stud("ROSSI"), stud("NERI", nome="ANNA")],
+                    docenti=[doc("Bianchi", tutte(giorni=[0, 1])), doc("Verdi", tutte(giorni=[0, 1])),
+                             doc("Galli", [], strumenti="ORCHESTRA")],
+                    lmi=[lab("FIATI", "Galli", "Rossi", "Neri")],
+                    abbinamenti=[abbinamento("", "FIATI", "Mercoledì", "13:30", "Laboratorio LMI")],
+                    timeout=15)
+        avvisi = controlli.controlla(d)
+        # il docente non era dichiarato disponibile: l'ora viene aperta e segnalata
+        self.assertTrue(any("Galli" in a.messaggio and "aperta" in a.messaggio for a in avvisi),
+                        [str(a) for a in avvisi])
+        o = motore.calcola(d)
+        lmi = [l for l in o.lezioni if l.tipo == TIPO_LMI]
+        self.assertEqual(len(lmi), 1)
+        self.assertEqual((lmi[0].docente, lmi[0].fascia, lmi[0].nome), ("Galli", f, "FIATI"))
+        self.assertEqual(set(lmi[0].studenti), {"ROSSI MARIO", "NERI ANNA"})
+        # i ragazzi del laboratorio risultano occupati in quell'ora
+        for sid in lmi[0].studenti:
+            in_quella_fascia = [l for l in o.lezioni_di(sid) if l.fascia == f]
+            self.assertEqual(len(in_quella_fascia), 1)
+        controlla_invarianti(self, o)
+
+    def test_laboratorio_lmi_inesistente(self):
+        with self.assertRaises(ProblemiError) as e:
+            controlli.controlla(dati_di(
+                studenti=[stud("ROSSI")],
+                docenti=[doc("Bianchi", tutte()), doc("Verdi", tutte()), doc("Galli", tutte())],
+                lmi=[lab("FIATI", "Galli", "Rossi")],
+                abbinamenti=[abbinamento("Galli", "ARCHI", "Mercoledì", "13:30", "Laboratorio LMI")]))
+        self.assertIn("ARCHI", str(e.exception))
+
+    def test_laboratorio_lmi_con_un_ragazzo_impegnato(self):
+        with self.assertRaises(ProblemiError) as e:
+            controlli.controlla(dati_di(
+                studenti=[stud("ROSSI"), stud("NERI", nome="ANNA")],
+                docenti=[doc("Bianchi", tutte()), doc("Verdi", tutte()), doc("Galli", tutte())],
+                lmi=[lab("FIATI", "Galli", "Rossi", "Neri")],
+                impegni=[impegno("NERI", nome="ANNA", fasce=[fascia(2, 0)])],
+                abbinamenti=[abbinamento("Galli", "FIATI", "Mercoledì", "13:30", "Laboratorio LMI")]))
+        self.assertIn("Neri", str(e.exception))
 
 
 class TestMotoreEsempio(Caso):

@@ -9,7 +9,7 @@ from pathlib import Path
 
 from .costanti import (
     ETICHETTA_ACCOMP, GIORNI, MAX_GRUPPO_LMC, N_ORE, ORE, ORE_FINE, ORE_LABEL,
-    TIPO_ACCOMP, TIPO_LMC, TIPO_STRUM1, TIPO_STRUM2,
+    TIPO_ACCOMP, TIPO_LMC, TIPO_LMI, TIPO_STRUM1, TIPO_STRUM2,
 )
 from .modello import DatiInput, Lezione, Orario, Studente
 
@@ -103,6 +103,14 @@ def descrizione_docente(dati: DatiInput, nome: str, giorno: int | None = None) -
 
 # ── Contenuto delle celle ────────────────────────────────────────────────────
 
+def etichetta_lmi(nome: str) -> str:
+    """'ARCHI' → 'LMI ARCHI'; 'LMI ARCHI' resta com'è (i nomi dei laboratori spesso lo contengono già)."""
+    n = " ".join((nome or "").split())
+    if not n:
+        return "LMI"
+    return n if n.upper().startswith("LMI") else f"LMI {n}"
+
+
 def cella_lezione(orario: Orario, lez: Lezione, doppi: set[str], molti_lmc: int = MAX_GRUPPO_LMC) -> Cella:
     """Costruisce la cella per una lezione (senza informazioni sulla disponibilità)."""
     dati = orario.dati
@@ -113,8 +121,8 @@ def cella_lezione(orario: Orario, lez: Lezione, doppi: set[str], molti_lmc: int 
             righe.append(Riga(etichetta_id(dati, id_, doppi), b, i))
         if lez.due_ore:
             righe.append(Riga("(2ª ora)", b, i))
-    elif lez.tipo == TIPO_LMC:
-        righe.append(Riga("LMC"))
+    elif lez.tipo in (TIPO_LMC, TIPO_LMI):
+        righe.append(Riga("LMC" if lez.tipo == TIPO_LMC else etichetta_lmi(lez.nome)))
         nomi = [etichetta_id(dati, id_, doppi) for id_ in lez.studenti]
         if len(nomi) > molti_lmc:
             righe.append(Riga(", ".join(nomi)))
@@ -151,10 +159,14 @@ def griglia_docente(orario: Orario, docente: str, doppi: set[str],
 # ── Vista studente ───────────────────────────────────────────────────────────
 
 def tipo_lezione_breve(lez: Lezione) -> str:
+    if lez.tipo == TIPO_LMI:
+        return etichetta_lmi(lez.nome)
     return {TIPO_STRUM1: "1° str.", TIPO_STRUM2: "2° str.", TIPO_LMC: "LMC", TIPO_ACCOMP: "Accomp."}.get(lez.tipo, lez.tipo)
 
 
 def tipo_lezione_lungo(lez: Lezione) -> str:
+    if lez.tipo == TIPO_LMI:
+        return f"Laboratorio {etichetta_lmi(lez.nome)}" if lez.nome else "Laboratorio d'insieme"
     return {TIPO_STRUM1: "1° strumento", TIPO_STRUM2: "2° strumento", TIPO_LMC: "Musica da camera",
             TIPO_ACCOMP: "Accompagnamento"}.get(lez.tipo, lez.tipo)
 
@@ -173,7 +185,7 @@ def lezione_per_studente(orario: Orario, lez: Lezione, id_: str, doppi: set[str]
     b, i = lez.tipo == TIPO_STRUM1, lez.tipo == TIPO_STRUM2
     righe = [Riga(tipo_lezione_lungo(lez), b, i),
              Riga(descrizione_docente(dati, lez.docente, lez.giorno), b, i)]
-    if lez.tipo == TIPO_LMC:
+    if lez.tipo in (TIPO_LMC, TIPO_LMI):
         altri = [etichetta_id(dati, x, doppi) for x in lez.studenti if x != id_]
         if altri:
             righe.append(Riga("con " + ", ".join(altri)))
@@ -216,12 +228,14 @@ def riepilogo(orario: Orario) -> list[tuple[str, object]]:
             oltre_max += 1
     n_lmc = sum(1 for l in orario.lezioni if l.tipo == TIPO_LMC)
     n_acc = sum(1 for l in orario.lezioni if l.tipo == TIPO_ACCOMP)
+    n_lmi = sum(1 for l in orario.lezioni if l.tipo == TIPO_LMI)
     righe: list[tuple[str, object]] = [
         ("Studenti", len(dati.studenti)),
         ("Docenti", len(dati.docenti)),
         ("Lezioni in orario", len(orario.lezioni)),
         ("  di cui musica da camera (LMC)", n_lmc),
         ("  di cui accompagnamento", n_acc),
+        *([("  di cui laboratori LMI fissati", n_lmi)] if n_lmi else []),
         ("Stato del calcolo", orario.stato or "-"),
         ("Tempo di calcolo (secondi)", round(orario.secondi, 1)),
         ("Totale buchi (ore libere tra due lezioni)", buchi_tot),
