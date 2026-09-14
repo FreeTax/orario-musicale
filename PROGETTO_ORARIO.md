@@ -140,7 +140,7 @@ vanno rifatte o copiate; in futuro si può fare uno script di aggiornamento che 
 | Gruppi LMC | Gruppo, Docente, Studente 1…5, Note | vuoto, con 2 righe di esempio grigie da cancellare; i gruppi li fornisce lo zio |
 | Abbinamenti fissi | Docente, Studente (oppure «Gruppo N» di musica da camera, oppure un laboratorio del foglio LMI), Tipo di lezione, Giorno, Ora, Note | vuoto; le lezioni decise a mano, che il motore blocca |
 | LMI | Laboratorio, Classi, Docente, Aula, Giorno e ora (mattino), Studenti, Note | vuoto, con 1 riga di esempio; il programma non li calcola, li ricopia in output |
-| Parametri | Max rientri (2), max rientri chi abita vicino (3), soglia KM "vicino" (5), tempo massimo di calcolo (120 s), indirizzo della scuola, soglia minuti "vicino" (25) | valori proposti; indirizzo scuola da compilare |
+| Parametri | Max rientri (2), max rientri chi abita vicino (3), soglia KM "vicino" (5), tempo massimo di calcolo (120 s), indirizzo della scuola, soglia minuti "vicino" (25), soglia minuti "tutto in un giorno" (90) | valori proposti; indirizzo scuola da compilare |
 | Trasporti | scritto dal programma (Aggiorna trasporti): per studente, minuti/arrivo/mezzi per fascia | vuoto finché non si aggiorna |
 
 Le colonne Docente e Studente hanno menu a tendina collegati agli altri fogli, così i nomi coincidono.
@@ -390,6 +390,28 @@ i ragazzi (si può anche digitare); scrivendo solo il cognome, il nome viene agg
 sono omonimi, e negli LMI questo vale per ogni nome dell'elenco separato da virgole. Con gli omonimi (nei
 dati veri: Gori Camilla di 3ª e Gori Yvaine di 5ª) la cella resta come scritta, così è chi compila a
 scegliere. La verifica dei nomi al momento del calcolo accetta entrambe le forme.
+
+**Conta l'ora in cui arriva a casa, non la durata del viaggio (14/9/2026, dall'analisi di un output)**:
+Fiesoli, che sta a 128 minuti, si era vista mettere una lezione all'ultima ora. Guardando i suoi dati il
+motivo era chiaro: finendo alle 16:30, alle 17:30 o alle 18:30 lei arriva **sempre alle 19:38**, perché il
+treno è quello; il costo però era «minuti di attesa + viaggio», quindi finire più tardi *riduceva* l'attesa e
+l'ultima fascia risultava la scelta migliore. Ora il costo è il **ritardo dell'arrivo a casa** rispetto al
+meglio che quel ragazzo può fare (per lei: 17:03 finendo alle 14:30), moltiplicato per la lontananza. Le
+fasce che portano allo stesso treno costano uguale, e a quel punto vince la più presta.
+
+**I lontani saltano l'ultima ora e vengono un pomeriggio solo (14/9/2026, richiesta di Francesco)**: due pesi
+nuovi, entrambi progressivi con la lontananza e senza soglie. `PESO_ULTIMA_LONTANO = 400 × lontananza` sulla
+fascia delle 16:30, e `PESO_RIENTRO_LONTANO = 350 × lontananza` per ogni pomeriggio oltre il primo (prima un
+secondo rientro era gratis fino al massimo consentito). Restano sotto il peso di un buco, quindi non si crea
+un vuoto pur di anticipare. Sui dati veri: dei 30 studenti più lontani **uno solo** ha ancora una lezione alle
+16:30 (erano molti di più), e Fiesoli è passata da giovedì 14:30-16:30 a lunedì 13:30-15:30.
+
+**Chi viene da molto lontano fa tutto in un giorno (14/9/2026)**: la regola nuova delle 2 ore di 1° strumento
+in giorni diversi e la richiesta «i lontani tutte le lezioni lo stesso pomeriggio» si contraddicono. Vince la
+seconda sopra una soglia esplicita, il parametro **«Soglia minuti 'tutto in un giorno'»** (90 minuti di
+default, modificabile nel foglio Parametri): sopra quel viaggio la separazione non si applica e viene
+segnalato negli avvisi, ragazzo per ragazzo. Sui dati veri riguarda 17 studenti, 13 dei quali vengono un
+pomeriggio solo.
 
 **Gruppi di musica da camera negli abbinamenti fissi (14/9/2026, richiesta di Francesco)**: nella colonna
 Studente si scrive «Gruppo 5» (vanno bene anche «Gr. 5», «LMC 5» o il solo numero) e l'ora del gruppo resta

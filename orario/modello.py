@@ -54,6 +54,19 @@ class Studente:
     trasporto: Trasporto | None = None  # riempito da "Aggiorna trasporti" (foglio Trasporti)
 
     @property
+    def minuti_ritorno(self) -> float:
+        """Quanto ci mette a tornare a casa, in minuti: dai mezzi se ci sono, altrimenti stimati dai km."""
+        if self.trasporto is not None and self.trasporto.minuti_min is not None:
+            return float(self.trasporto.minuti_min)
+        if self.km is not None:
+            return 10.0 + 2.5 * self.km
+        return 0.0
+
+    def molto_lontano(self, par: "Parametri") -> bool:
+        """Abita così lontano che conviene fargli fare tutto in un pomeriggio solo."""
+        return self.minuti_ritorno >= par.soglia_min_giorno_unico
+
+    @property
     def ore_consecutive(self) -> bool:
         """Le 2 ore di 1° strumento devono essere una di seguito all'altra."""
         return self.primo_attaccato is True
@@ -178,6 +191,7 @@ class Parametri:
     max_rientri_vicini: int = 3
     soglia_km_vicino: float = 5.0
     soglia_min_vicino: int = 25  # minuti di ritorno a casa sotto i quali si è "vicini" (se ci sono i trasporti)
+    soglia_min_giorno_unico: int = 90  # sopra questi minuti di viaggio: tutte le lezioni lo stesso giorno
     timeout_s: int = 120
     indirizzo_scuola: str = ""
 

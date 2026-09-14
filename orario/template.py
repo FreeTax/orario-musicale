@@ -45,6 +45,7 @@ PARAMETRI_DEFAULT = [
     ("Tempo massimo di calcolo (secondi)", 120, "Oltre questo tempo il programma restituisce la migliore soluzione trovata."),
     ("Indirizzo della scuola", "", "Via, numero e comune della scuola: punto di partenza per il calcolo dei mezzi pubblici (menu Orario → Aggiorna trasporti)."),
     ("Soglia minuti 'abita vicino'", 25, "Se ci sono i dati dei trasporti: sotto questi minuti di ritorno a casa il ragazzo è considerato vicino."),
+    ("Soglia minuti 'tutto in un giorno'", 90, "Sopra questi minuti di viaggio il ragazzo fa tutte le lezioni lo stesso pomeriggio, nelle prime ore: per lui la regola delle 2 ore di 1° strumento in giorni diversi non vale."),
 ]
 
 ISTRUZIONI = [

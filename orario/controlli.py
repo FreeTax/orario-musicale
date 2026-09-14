@@ -171,6 +171,11 @@ def controlla(dati: DatiInput) -> list[Problema]:
             avv(dove, "«Giorno unico = SI» e le 2 ore di 1° strumento in giorni diversi non stanno insieme: "
                       "vince il giorno unico, le due ore restano nello stesso pomeriggio.",
                 "giorno unico: 2 ore di 1° strumento nello stesso giorno")
+        elif s.primo_separato and h1 == 2 and s.molto_lontano(dati.parametri):
+            avv(dove, f"Abita a {round(s.minuti_ritorno)} minuti da scuola: fa tutte le lezioni lo stesso "
+                      "pomeriggio e nelle prime ore, quindi le 2 ore di 1° strumento restano nello stesso "
+                      f"giorno (soglia nel foglio Parametri: {dati.parametri.soglia_min_giorno_unico} minuti).",
+                "chi viene da lontano: tutte le lezioni in un pomeriggio")
         if s.primo_attaccato is not None and h1 != 2:
             avv(dove, f"«1° strumento attaccato = {'SI' if s.primo_attaccato else 'NO'}» ma la classe ha una "
                       "sola ora di 1° strumento: ignorato.",
@@ -457,7 +462,8 @@ def controlla(dati: DatiInput) -> list[Problema]:
                     err(dove, f"«1° strumento attaccato = SI» ma il docente {doc_nome} non ha due fasce "
                               "consecutive libere nello stesso giorno.")
             if (ore == 2 and s.primo_separato and doc_nome == s.doc1
-                    and not s.giorno_unico and s.id not in s1_fissato):
+                    and not s.giorno_unico and not s.molto_lontano(dati.parametri)
+                    and s.id not in s1_fissato):
                 giorni_utili = {f // N_ORE for f in fasce}
                 if len(giorni_utili) < 2:
                     err(dove, f"Le 2 ore di 1° strumento vanno in giorni diversi, ma con il docente {doc_nome} "

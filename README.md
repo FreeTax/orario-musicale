@@ -63,6 +63,11 @@ vuota le tiene separate. Fanno eccezione le ore fissate a mano negli abbinamenti
 La colonna **«Minuti per tornare a casa»** la scrive il programma con «Aggiorna trasporti»: è il tempo
 migliore fra le quattro fasce, il dettaglio ora per ora resta nel foglio Trasporti.
 
+Chi abita **lontano** salta per quanto possibile l'ultima ora e concentra le lezioni in un pomeriggio solo,
+in proporzione al viaggio: quello che conta è **a che ora arriva a casa**, non quanto dura il viaggio. Oltre
+la soglia del parametro «Soglia minuti 'tutto in un giorno'» (90 minuti) fa tutto lo stesso giorno, e per lui
+la regola delle 2 ore di 1° strumento in giorni diversi non vale.
+
 Su un file compilato con una versione precedente, **Modifica → Riallinea il formato del file** rimette le
 istruzioni aggiornate, le larghezze delle colonne e i menu a tendina, senza toccare i dati.
 

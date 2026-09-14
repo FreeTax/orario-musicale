@@ -28,7 +28,7 @@ from dataclasses import dataclass, field
 from ortools.sat.python import cp_model
 
 from .costanti import (
-    GIORNI_LUNGHI, N_FASCE, N_GIORNI, N_ORE, ORE, TIPO_ACCOMP, TIPO_LMC, TIPO_LMI, TIPO_STRUM1,
+    GIORNI_LUNGHI, N_FASCE, N_GIORNI, N_ORE, ORE, ORE_FINE, TIPO_ACCOMP, TIPO_LMC, TIPO_LMI, TIPO_STRUM1,
     TIPO_STRUM2, fascia, giorno_ora, nome_fascia,
 )
 from .modello import DatiInput, Docente, Lezione, Orario, Problema, ProblemiError, Studente
@@ -39,7 +39,14 @@ PESO_RIENTRO_BASE = 600       # per ogni rientro oltre max_rientri: × (1 + 2·k
 PESO_RIENTRO_VICINO = 150     # idem, per chi abita vicino
 PESO_ORA_TARDIVA = 12         # × ora, per tutti: si riempiono prima le prime fasce del pomeriggio
 PESO_DIST_LONTANO = 40        # × lontananza × ora, in più per chi abita lontano (i lontani ancora più presto)
-PESO_MINUTO_RITORNO = 1       # × minuti di attesa+viaggio dopo la lezione (dati dei mezzi): a parità, meno attesa
+PESO_MINUTO_ARRIVO = 1        # × minuti di ritardo dell'arrivo a casa rispetto al meglio che quel ragazzo può
+                              # fare, × (1 + lontananza). Conta l'ORA IN CUI ARRIVA, non la durata del viaggio:
+                              # se il treno è sempre quello, finire più tardi non lo fa arrivare più tardi, e
+                              # prima si contava solo l'attesa, che premiava l'ultima ora.
+PESO_ULTIMA_LONTANO = 400     # × lontananza: chi abita lontano evita l'ultima fascia, anche quando il viaggio
+                              # sarebbe identico (uscire alle 17:30 da lontano è comunque peggio)
+PESO_RIENTRO_LONTANO = 350    # × lontananza, per ogni pomeriggio oltre il primo: chi viene da lontano
+                              # concentra tutto in un giorno anche restando sotto il massimo dei rientri
 PESO_SENZA_MEZZO = 3000       # lezione in una fascia dopo la quale non c'è un mezzo per tornare a casa
 PESO_ATTESA_INIZIO = 120      # × ore di attesa fra la fine del mattino e la prima lezione del pomeriggio,
                               # × (1 + lontananza): chi resta a scuola non deve aspettare a vuoto
@@ -190,16 +197,25 @@ def _crea_unita(dati: DatiInput) -> list[_Unita]:
 
 # ── Km normalizzati ──────────────────────────────────────────────────────────
 
+_MINUTI_FINE = [int(o[:2]) * 60 + int(o[3:5]) for o in ORE_FINE]
+
+
+def _arrivo_a_casa(t, o: int) -> int | None:
+    """Minuti dopo mezzanotte a cui il ragazzo arriva a casa se la lezione finisce nella fascia `o`."""
+    testo = t.arrivi[o] if o < len(t.arrivi) else ""
+    ore_min = str(testo).strip().split(":")
+    if len(ore_min) >= 2 and ore_min[0].isdigit() and ore_min[1][:2].isdigit():
+        return int(ore_min[0]) * 60 + int(ore_min[1][:2])
+    minuti = t.minuti[o] if o < len(t.minuti) else None
+    return None if minuti is None else _MINUTI_FINE[o] + 5 + minuti
+
+
 def _lontananza(s: Studente) -> float:
     """Quanto è 'lontano' uno studente, in minuti di ritorno a casa.
 
     Con i dati dei mezzi: il ritorno migliore tra le 4 fasce. Senza: stima dai km (10 min + 2,5 min/km).
     Nulla di nulla → 0 (vicino)."""
-    if s.trasporto is not None and s.trasporto.minuti_min is not None:
-        return float(s.trasporto.minuti_min)
-    if s.km is not None:
-        return 10.0 + 2.5 * s.km
-    return 0.0
+    return s.minuti_ritorno
 
 
 def _km_norm(dati: DatiInput) -> dict[str, float]:
@@ -345,7 +361,8 @@ class _Modello:
                     m.add(self._pos(a) < self._pos(b))
             # le 2 ore di 1° strumento in due giorni diversi, salvo un SI esplicito o un abbinamento
             # fisso: se l'ora l'ha scelta una persona, quella vince sulla regola
-            if s.primo_separato and len(s1) == 2 and not s.giorno_unico and not any(u.fissata for u in s1):
+            if (s.primo_separato and len(s1) == 2 and not s.giorno_unico
+                    and not s.molto_lontano(par) and not any(u.fissata for u in s1)):
                 for g in range(N_GIORNI):
                     dello_stesso_giorno = [self.x[u.idx, f] for u in s1 for f in range(fascia(g, 0), fascia(g, 0) + N_ORE)
                                            if (u.idx, f) in self.x]
@@ -397,6 +414,11 @@ class _Modello:
                 self.buchi_stud[s.id].extend(self._buchi(occ_g, f"bs_{s.riga}_{g}"))
             rientri = sum(giorni_var) if giorni_var else 0
             self.rientri[s.id] = rientri
+            if giorni_var and km_norm[s.id]:
+                # ogni pomeriggio in più costa a chi abita lontano, anche sotto il massimo dei rientri
+                oltre_il_primo = m.new_int_var(0, len(giorni_var), f"gg_{s.riga}")
+                m.add(oltre_il_primo >= rientri - 1)
+                self.costi.append((round(PESO_RIENTRO_LONTANO * km_norm[s.id]), oltre_il_primo))
             if giorni_var:
                 m.add(rientri <= par.max_rientri_vicini)
                 if s.giorno_unico:
@@ -413,6 +435,9 @@ class _Modello:
             # distanza progressiva: prime fasce piene, i lontani ancora più presto
             kn = km_norm[s.id]
             tr = s.trasporto
+            arrivi = [_arrivo_a_casa(tr, o) for o in range(N_ORE)] if tr is not None and tr.valido else []
+            validi = [a for a in arrivi if a is not None]
+            prima_possibile = min(validi) if validi else None
             for f in range(N_FASCE):
                 v = occ_s[f]
                 if isinstance(v, int):
@@ -420,11 +445,18 @@ class _Modello:
                 o = giorno_ora(f)[1]
                 # criterio principale (uguale con km o con mezzi): chi abita lontano (kn alto) va messo presto
                 c = round((PESO_ORA_TARDIVA + PESO_DIST_LONTANO * kn) * o)
+                if o == N_ORE - 1 and kn:
+                    c += round(PESO_ULTIMA_LONTANO * kn)   # i lontani saltano l'ultima ora
                 if tr is not None and tr.valido:
-                    # in più, con i dati dei mezzi: meno minuti di attesa+viaggio dopo la lezione, e mai una
-                    # fascia dopo la quale non c'è un mezzo per tornare a casa
+                    # con i dati dei mezzi: conta a che ora arriva a casa, non quanto dura il viaggio.
+                    # Il riferimento è il meglio che quel ragazzo può fare, così la fascia migliore costa 0.
                     m_o = tr.minuti[o] if o < len(tr.minuti) else None
-                    c += PESO_SENZA_MEZZO if m_o is None else PESO_MINUTO_RITORNO * m_o
+                    if m_o is None:
+                        c += PESO_SENZA_MEZZO     # nessun mezzo per tornare a casa dopo quella fascia
+                    else:
+                        casa = _arrivo_a_casa(tr, o)
+                        if casa is not None and prima_possibile is not None:
+                            c += round(PESO_MINUTO_ARRIVO * (1 + kn) * max(0, casa - prima_possibile))
                 if c:
                     self.costi.append((c, v))
             for b in self.buchi_stud[s.id]:
@@ -741,7 +773,8 @@ def _verifica(dati: DatiInput, unita: list[_Unita], lezioni: list[Lezione]) -> N
                 errore(f"{et}: le due ore di 1° strumento non sono consecutive.")
             if a.due_ore or not b.due_ore:
                 errore(f"{et}: indicatore due_ore sbagliato.")
-        if s.primo_separato and h1 == 2 and not s.giorno_unico and s.id not in fissati_s1:
+        if (s.primo_separato and h1 == 2 and not s.giorno_unico
+                and not s.molto_lontano(par) and s.id not in fissati_s1):
             a, b = sorted((l for l in mie if l.tipo == TIPO_STRUM1), key=lambda l: l.fascia)
             if a.giorno == b.giorno:
                 errore(f"{et}: le due ore di 1° strumento sono nello stesso giorno, "
