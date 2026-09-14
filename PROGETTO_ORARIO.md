@@ -391,6 +391,14 @@ sono omonimi, e negli LMI questo vale per ogni nome dell'elenco separato da virg
 dati veri: Gori Camilla di 3ª e Gori Yvaine di 5ª) la cella resta come scritta, così è chi compila a
 scegliere. La verifica dei nomi al momento del calcolo accetta entrambe le forme.
 
+**Riallineamento del formato (14/9/2026)**: `aggiorna_struttura` aggiunge fogli, colonne e parametri, ma non
+tocca il *formato* del file: un file compilato mesi fa si ritrova le istruzioni vecchie e le colonne nuove
+senza menu a tendina né larghezze. `template.rinfresca_formato(percorso)` riscrive il foglio Istruzioni e
+rimette, foglio per foglio, larghezze, stile dell'intestazione e menu a tendina presi da un modello costruito
+al momento con lo stesso numero di righe (così le tendine coprono tutte le righe vere). Un foglio le cui
+colonne non corrispondono al modello viene lasciato stare. Si richiama dal menu **Modifica → Riallinea il
+formato del file**.
+
 **Colonna «Minuti per tornare a casa» (14/9/2026, richiesta di Francesco)**: nel foglio Studenti, dopo i KM.
 La scrive il programma (il migliore delle 4 fasce, dal foglio Trasporti) quando si aggiornano i trasporti e a
 ogni salvataggio, così il tempo di viaggio si legge accanto al ragazzo senza aprire il foglio Trasporti, dove

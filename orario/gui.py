@@ -30,7 +30,7 @@ from .lettura import (
     salva_orario_nel_file, salva_tabelle, salva_trasporti,
 )
 from .modello import Orario, Problema, ProblemiError
-from .template import ISTRUZIONI, crea_nuovo_file
+from .template import ISTRUZIONI, crea_nuovo_file, rinfresca_formato
 
 VERSIONE = "1.0 (settembre 2026)"
 
@@ -148,6 +148,9 @@ class App(ctk.CTk):
         m_mod.add_separator()
         m_mod.add_command(label="Compila i docenti dagli studenti", command=self.compila_docenti)
         m_mod.add_command(label="Copia i nomi negli impegni studenti", command=self.compila_impegni)
+        m_mod.add_separator()
+        m_mod.add_command(label="Riallinea il formato del file (istruzioni, larghezze, menu a tendina)",
+                          command=self.riallinea_formato)
         m_mod.add_separator()
         m_mod.add_command(label="Suggerimento: doppio clic su una cella per modificarla; tasto destro per altre azioni", state="disabled")
         barra.add_cascade(label="Modifica", menu=m_mod)
@@ -688,6 +691,30 @@ class App(ctk.CTk):
             salva_tabelle(self.percorso, tabelle)
         except Exception:
             pass
+
+    def riallinea_formato(self) -> None:
+        """Rimette nel file le istruzioni, le larghezze e i menu a tendina di questa versione."""
+        if not self._con_file():
+            return
+        assert self.percorso is not None
+        if not self.salva():
+            return
+        try:
+            fatti = rinfresca_formato(self.percorso)
+        except PermissionError:
+            self.mostra_problemi([Problema("errore", self.percorso.name,
+                                           "Il file è aperto in Excel: chiuderlo e riprovare.")],
+                                 "Formato non riallineato")
+            return
+        except Exception as e:
+            self.mostra_problemi([Problema("errore", self.percorso.name, f"Non riuscito: {e}")],
+                                 "Formato non riallineato")
+            return
+        self.lbl_stato.configure(text=f"Formato riallineato: {len(fatti)} fogli sistemati")
+        FinestraTesto(self, "Formato riallineato",
+                      "Il file è stato riportato al formato di questa versione, senza toccare i dati:\n\n"
+                      + "\n".join(f"   • {x}" for x in fatti),
+                      sottotitolo="Istruzioni, larghezze delle colonne e menu a tendina")
 
     def aggiorna_totali(self) -> None:
         """Ricalcola la colonna «Ore dichiarate» e la riga TOTALE del foglio Docenti."""

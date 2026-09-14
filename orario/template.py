@@ -318,3 +318,76 @@ def crea_nuovo_file(percorso: Path) -> Path:
     wb = costruisci_workbook(esempi=True)
     wb.save(percorso)
     return percorso
+
+
+# ── Riallineamento del formato di un file già esistente ──────────────────────
+
+def rinfresca_formato(percorso: Path) -> list[str]:
+    """Riporta un file già compilato al formato di oggi, senza toccare i dati.
+
+    Riscrive il foglio Istruzioni e rimette, foglio per foglio, le larghezze delle colonne,
+    lo stile dell'intestazione e i menu a tendina, che nei file più vecchi mancano sulle
+    colonne aggiunte dopo. I fogli con colonne diverse dal modello vengono lasciati stare.
+    """
+    from copy import copy
+
+    from openpyxl import load_workbook
+    from openpyxl.utils import range_boundaries
+
+    from .costanti import FOGLI_DATI
+    from .lettura import _salva_atomico
+
+    wb = load_workbook(percorso)
+    # il modello si costruisce con lo stesso numero di righe, così i menu coprono tutte le righe vere
+    n_stud = max(0, (wb[FOGLIO_STUDENTI].max_row - 1) if FOGLIO_STUDENTI in wb.sheetnames else 0)
+    n_doc = max(0, (wb[FOGLIO_DOCENTI].max_row - 1) if FOGLIO_DOCENTI in wb.sheetnames else 0)
+    modello = costruisci_workbook(
+        studenti=[{"classe": 1, "cognome": "", "nome": ""} for _ in range(n_stud)],
+        docenti=[{"nome": ""} for _ in range(n_doc)], esempi=False)
+
+    fatti: list[str] = []
+    if "Istruzioni" in wb.sheetnames:
+        del wb["Istruzioni"]
+    ws = wb.create_sheet("Istruzioni", 0)
+    ws.column_dimensions["A"].width = 115
+    for testo in ISTRUZIONI:
+        ws.append([testo])
+    ws["A1"].font = Font(bold=True, size=14)
+    for r, testo in enumerate(ISTRUZIONI, start=1):
+        if testo.startswith(("FOGLIO", "REGOLE")):
+            ws.cell(row=r, column=1).font = BOLD
+    fatti.append("foglio «Istruzioni» riscritto")
+
+    for nome in FOGLI_DATI:
+        if nome not in wb.sheetnames or nome not in modello.sheetnames:
+            continue
+        src, dst = modello[nome], wb[nome]
+        intest_src = [c.value for c in src[1]]
+        if [c.value for c in dst[1]] != intest_src:
+            continue                      # colonne diverse dal modello: meglio non toccare niente
+        for i in range(1, len(intest_src) + 1):
+            lettera_col = get_column_letter(i)
+            larghezza = src.column_dimensions[lettera_col].width
+            if larghezza:
+                dst.column_dimensions[lettera_col].width = larghezza
+            testa_src, testa_dst = src.cell(1, i), dst.cell(1, i)
+            testa_dst.font = copy(testa_src.font)
+            testa_dst.fill = copy(testa_src.fill)
+            testa_dst.alignment = copy(testa_src.alignment)
+        if src.row_dimensions[1].height:
+            dst.row_dimensions[1].height = src.row_dimensions[1].height
+        dst.freeze_panes = src.freeze_panes
+        # menu a tendina: si rifanno tutti, allungati fino in fondo alle righe vere
+        dst.data_validations.dataValidation = []
+        fondo = max(dst.max_row, 2) + 200
+        for dv in src.data_validations.dataValidation:
+            nuovo = DataValidation(type=dv.type, operator=dv.operator, formula1=dv.formula1,
+                                   formula2=dv.formula2, allow_blank=dv.allowBlank,
+                                   showErrorMessage=dv.showErrorMessage)
+            dst.add_data_validation(nuovo)
+            for rif in dv.sqref.ranges:
+                c1, _, c2, _ = range_boundaries(str(rif))
+                nuovo.add(f"{get_column_letter(c1)}2:{get_column_letter(c2)}{fondo}")
+        fatti.append(f"larghezze e menu a tendina del foglio «{nome}»")
+    _salva_atomico(wb, percorso)
+    return fatti

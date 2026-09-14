@@ -315,6 +315,28 @@ class TestTemplate(Caso):
         self.assertEqual(d.studenti[0].ore, (2, 0, 1))
 
 
+    def test_rinfresca_formato(self):
+        """Su un file già compilato: istruzioni riscritte e menu a tendina rimessi, dati intatti."""
+        from orario.template import rinfresca_formato
+        f = self.dir / "vecchio.xlsx"
+        shutil.copy(ESEMPIO, f)
+        wb = load_workbook(f)
+        wb["Istruzioni"]["A1"] = "testo vecchio"
+        for nome in (FOGLIO_STUDENTI, FOGLIO_ABBINAMENTI):
+            wb[nome].data_validations.dataValidation = []      # come nei file di prima
+        wb.save(f)
+
+        fatti = rinfresca_formato(f)
+        self.assertTrue(any("Istruzioni" in x for x in fatti))
+        wb = load_workbook(f)
+        self.assertNotEqual(wb["Istruzioni"]["A1"].value, "testo vecchio")
+        self.assertTrue(wb[FOGLIO_ABBINAMENTI].data_validations.dataValidation, "menu a tendina rimessi")
+        # i dati non si toccano
+        self.assertEqual(wb[FOGLIO_STUDENTI].max_row, load_workbook(ESEMPIO)[FOGLIO_STUDENTI].max_row)
+        d = lettura.costruisci_dati(lettura.leggi_tabelle(f), f)
+        self.assertEqual(len(d.studenti), 30)
+
+
 # ═════════════════════════════════════════════════════════════════════════════
 # 2. Controlli
 # ═════════════════════════════════════════════════════════════════════════════

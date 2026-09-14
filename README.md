@@ -61,6 +61,9 @@ vuota le tiene separate. Fanno eccezione le ore fissate a mano negli abbinamenti
 La colonna **«Minuti per tornare a casa»** la scrive il programma con «Aggiorna trasporti»: è il tempo
 migliore fra le quattro fasce, il dettaglio ora per ora resta nel foglio Trasporti.
 
+Su un file compilato con una versione precedente, **Modifica → Riallinea il formato del file** rimette le
+istruzioni aggiornate, le larghezze delle colonne e i menu a tendina, senza toccare i dati.
+
 **Non derogabile**: lezioni solo dove il docente è disponibile; un docente e un ragazzo mai in due posti
 nella stessa ora; tutti i membri di un gruppo di musica da camera nella stessa ora; giorni vietati per
 ragazzo; ore consecutive e giorno unico dove richiesti; ore di pianista accompagnatore in coda alle lezioni
