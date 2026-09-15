@@ -438,7 +438,8 @@ def controlla(dati: DatiInput) -> list[Problema]:
     # ── Studente: fattibilità elementare con i suoi docenti ──
     # ragazzi le cui ore di 1° strumento sono già decise nel foglio degli abbinamenti: lì l'ora l'ha
     # scelta una persona, e vince sulla regola dei giorni diversi (i tipi sono già stati risolti sopra)
-    s1_fissato = {ab.studente for ab in dati.abbinamenti if ab.tipo == TIPO_STRUM1 and ab.studente}
+    conta_fissate = Counter(ab.studente for ab in dati.abbinamenti if ab.tipo == TIPO_STRUM1 and ab.studente)
+    s1_fissato = {sid for sid, n in conta_fissate.items() if n >= 2}   # tutte e due le ore decise a mano
     for s in dati.studenti:
         dove = f"{FOGLIO_STUDENTI}, riga {s.riga} ({s.cognome} {s.nome}, {s.classe}ª)"
         giorni_ok = [g for g in range(5) if g not in s.giorni_non_disp]
@@ -462,9 +463,14 @@ def controlla(dati: DatiInput) -> list[Problema]:
                 if (not any(b - a >= 2 for a in giorni_utili for b in giorni_utili)
                         and dati.gruppo_di(s.id) is None):   # con la musica da camera può condensare lì
                     quali = ", ".join(GIORNI[g] for g in giorni_utili) or "nessuno"
-                    err(dove, f"Le 2 ore di 1° strumento devono stare in due giorni con un giorno in mezzo, ma "
-                              f"con {doc_nome} restano possibili solo giorni vicini ({quali}). O si scrive "
-                              "«1° strumento attaccato = SI», oppure si apre al docente un altro giorno.")
+                    if len(giorni_utili) < 2:
+                        err(dove, f"Le 2 ore di 1° strumento vanno in due giorni diversi, ma con {doc_nome} resta "
+                                  f"un giorno solo possibile ({quali}). O si scrive «1° strumento attaccato = SI», "
+                                  "oppure si apre al docente un altro giorno.")
+                    else:
+                        avv(dove, f"Le 2 ore di 1° strumento vorrebbero un giorno libero in mezzo, ma {doc_nome} "
+                                  f"offre solo giorni di fila ({quali}): andranno in due giorni di fila.",
+                            "2 ore di 1° strumento in giorni di fila (il docente non dà altro)")
         if s.giorno_unico:
             # esiste un giorno in cui tutti i suoi docenti hanno disponibilità?
             docs = [docenti[n] for n in (s.doc1, s.doc2) if n in docenti]

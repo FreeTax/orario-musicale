@@ -404,12 +404,16 @@ zero». L'adattamento resta la scelta giusta quando cambiano i dati, non quando 
 **Le due ore di 1° strumento con un giorno in mezzo: regola rigida (15/9/2026, richiesta di Francesco)**:
 ieri sera l'avevo resa cedevole perché con la regola rigida l'orario per Pratesi non esisteva; il risultato è
 stato Pratesi con sax, pianoforte e di nuovo sax lo stesso martedì, che Francesco ha giudicato inaccettabile.
-Ora la regola è **rigida**: fra le due lezioni di 1° strumento ci vuole almeno un giorno libero
-(lunedì-mercoledì, martedì-venerdì…), mai lo stesso giorno né due giorni di fila. Se un docente non offre due
-giorni distanti nelle ore in cui il ragazzo può venire, **il calcolo si ferma prima** e dice le due vie
-d'uscita: «1° strumento attaccato = SI» oppure aprire un altro giorno al docente. Caso concreto: Spampani ha
-lunedì 13:30, martedì e mercoledì (9 ore per 9 richieste, zero margine) e Pratesi il mercoledì ha impegni
-tutto il pomeriggio, quindi gli restano solo lunedì e martedì.
+Ora la regola ha due livelli. **Lo stesso giorno è vietato** (vincolo rigido). **Il giorno libero in mezzo**
+(lunedì-mercoledì, martedì-venerdì…) è un vincolo fortissimo ma cedevole (`PESO_GIORNI_DI_FILA = 4000`, sopra
+ogni altro peso): due giorni di fila si accettano solo quando non c'è altro modo, e chi ci finisce compare
+negli avvisi. Decisione di Francesco: «se il docente ha solo due giorni attaccati, andranno in due giorni
+attaccati». Perché cedevole e non un semplice controllo sul docente: Spampani ha lunedì 13:30, martedì e
+mercoledì (9 ore per 9 richieste, zero margine); Boldrini può fare solo lunedì-mercoledì e Pratesi, che il
+mercoledì ha impegni tutto il pomeriggio, solo lunedì-martedì. Tutti e due vorrebbero l'unica ora del lunedì:
+guardando ciascun allievo da solo sembra risolvibile, insieme no. Con il vincolo cedevole uno dei due va in
+due giorni di fila e l'orario esiste. Se il docente ha un giorno solo, il calcolo si ferma prima e dice le
+due vie d'uscita: «1° strumento attaccato = SI» oppure un altro giorno al docente.
 
 Eccezioni: «attaccato = SI», «Giorno unico = SI», ore fissate a mano, e — su suggerimento di Francesco — chi
 ha la **musica da camera** può condensare tutto nel pomeriggio della musica da camera: un'ora di 1° strumento

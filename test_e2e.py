@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import shutil
+from collections import Counter
 import subprocess
 import sys
 import tempfile
@@ -544,11 +545,10 @@ def controlla_invarianti(caso: unittest.TestCase, orario) -> None:
             caso.assertTrue(b.due_ore and not a.due_ore)
         # le 2 ore di 1° strumento con almeno un giorno in mezzo, salvo giorno unico, ore fissate a mano,
         # oppure tutte e due nel pomeriggio della musica da camera (mai attaccate senza il SI)
-        fissate = {ab.studente for ab in dati.abbinamenti if ab.tipo == TIPO_STRUM1}
+        fissate = {sid for sid, n in Counter(ab.studente for ab in dati.abbinamenti if ab.tipo == TIPO_STRUM1).items() if n >= 2}
         if s.primo_separato and h1 == 2 and not s.giorno_unico and s.id not in fissate:
             a, b = sorted((l for l in mie if l.tipo == TIPO_STRUM1), key=lambda l: l.fascia)
-            if b.giorno - a.giorno < 2:
-                caso.assertEqual(a.giorno, b.giorno, f"{s.id}: 1° strumento in due giorni di fila")
+            if a.giorno == b.giorno:   # lo stesso giorno solo con la musica da camera quel giorno, mai attaccate
                 caso.assertIn(a.giorno, {l.giorno for l in mie if l.tipo == TIPO_LMC},
                               f"{s.id}: 1° strumento due volte lo stesso giorno senza musica da camera")
                 caso.assertNotEqual(b.ora, a.ora + 1, f"{s.id}: 1° strumento attaccato senza SI")
@@ -830,12 +830,20 @@ class TestAbbinamentiFissi(Caso):
         controlla_invarianti(self, o)
 
     def test_primo_strumento_attaccato_no_con_un_giorno_solo(self):
-        """Se il docente offre solo giorni vicini, il calcolo si ferma prima e dice cosa fare."""
+        """Un giorno solo: errore prima del calcolo. Due giorni di fila: avviso, e le ore vanno lì."""
         with self.assertRaises(ProblemiError) as e:
             controlli.controlla(dati_di(studenti=[stud("ROSSI", cons="NO")],
-                                        docenti=[doc("Bianchi", tutte(giorni=[0, 1])), doc("Verdi", tutte())]))
-        self.assertIn("giorno in mezzo", str(e.exception))
-        self.assertIn("attaccato = SI", str(e.exception))
+                                        docenti=[doc("Bianchi", tutte(giorni=[1])), doc("Verdi", tutte())]))
+        self.assertIn("un giorno solo", str(e.exception))
+        d = dati_di(studenti=[stud("ROSSI", cons="NO")],
+                    docenti=[doc("Bianchi", tutte(giorni=[0, 1])), doc("Verdi", tutte())], timeout=10)
+        avvisi = controlli.controlla(d)
+        self.assertTrue(any("giorni di fila" in a.messaggio for a in avvisi), [str(a) for a in avvisi])
+        o = motore.calcola(d)
+        gg = sorted(l.giorno for l in o.lezioni if l.tipo == TIPO_STRUM1)
+        self.assertEqual(gg, [0, 1])
+        self.assertTrue(any("giorni di fila" in x.messaggio for x in o.avvisi), [str(x) for x in o.avvisi])
+        controlla_invarianti(self, o)
 
     def test_con_la_musica_da_camera_si_condensa(self):
         """5ª con la LMC: le 2 ore di 1° strumento possono stare nel pomeriggio della LMC, una prima e una dopo."""

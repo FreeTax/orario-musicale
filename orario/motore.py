@@ -57,6 +57,10 @@ PESO_MINUTO_SERA = 2          # × minuti di arrivo a casa dopo le 17:30, per tu
                               # ragazzo può fare, non distingueva chi arriva comunque tardissimo.
 PESO_ULTIMA_LONTANO = 400     # × lontananza: chi abita lontano evita l'ultima fascia, anche quando il viaggio
                               # sarebbe identico (uscire alle 17:30 da lontano è comunque peggio)
+PESO_GIORNI_DI_FILA = 4000    # le 2 ore di 1° strumento in due giorni di fila invece che con un giorno in
+                              # mezzo. Sopra ogni altro peso: succede solo quando il docente non dà altro,
+                              # anche per la concorrenza fra i suoi allievi (Spampani ha un'ora sola il lunedì
+                              # e due allievi che la vorrebbero entrambi). Lo stesso giorno resta vietato.
 PESO_RIENTRO_LONTANO = 350    # × lontananza, per ogni pomeriggio oltre il primo: chi viene da lontano
                               # concentra tutto in un giorno anche restando sotto il massimo dei rientri
 PESO_SENZA_MEZZO = 3000       # lezione in una fascia dopo la quale non c'è un mezzo per tornare a casa
@@ -225,6 +229,16 @@ def _arrivo_a_casa(t, o: int) -> int | None:
     return None if minuti is None else _MINUTI_FINE[o] + 5 + minuti
 
 
+def _giorni_distanti_possibili(s: Studente, d: Docente | None) -> bool:
+    """Il docente di 1° strumento ha due giorni con un giorno in mezzo fra quelli in cui il ragazzo può venire.
+
+    Se no, la regola del giorno libero in mezzo cede: le due ore vanno in due giorni di fila (mai lo stesso)."""
+    if d is None:
+        return True
+    giorni = sorted({f // N_ORE for f in d.fasce_x if s.libero(f)})
+    return any(b - a >= 2 for a in giorni for b in giorni)
+
+
 def _lontananza(s: Studente) -> float:
     """Quanto è 'lontano' uno studente, in minuti di ritorno a casa.
 
@@ -296,6 +310,7 @@ class _Modello:
         m, dati, unita = self.m, self.dati, self.unita
         par = dati.parametri
         km_norm = _km_norm(dati)
+        docenti_per_nome = {d.nome: d for d in dati.docenti}
 
         # variabili x[u, f]
         for u in unita:
@@ -382,7 +397,7 @@ class _Modello:
             # della musica da camera (un'ora prima, una dopo: mai attaccate, salvo il SI).
             u_lmc = next((u for u in unita_s if u.tipo == TIPO_LMC), None)
             if (s.primo_separato and len(s1) == 2 and not s.giorno_unico
-                    and not any(u.fissata for u in s1)):
+                    and not all(u.fissata for u in s1)):   # con una sola ora fissata, l'altra si tiene a distanza
                 a, b = s1
                 condensabile = u_lmc is not None
                 s1_in: list = []
@@ -400,8 +415,12 @@ class _Modello:
                     else:
                         y.append(0)
                     m.add(s1_in[g] <= 1 + y[g])
+                # il giorno in mezzo è un vincolo fortissimo ma cedevole: due giorni di fila si accettano
+                # solo quando non c'è altro modo (lo stesso giorno invece è vietato, sopra)
                 for g in range(N_GIORNI - 1):
-                    m.add(s1_in[g] + s1_in[g + 1] <= 1 + y[g] + y[g + 1])
+                    di_fila = m.new_bool_var(f"di_fila_{s.riga}_{g}")
+                    m.add(s1_in[g] + s1_in[g + 1] <= 1 + y[g] + y[g + 1] + di_fila)
+                    self.costi.append((PESO_GIORNI_DI_FILA, di_fila))
                 if condensabile:
                     # nel pomeriggio condensato le due ore non stanno attaccate: solo il SI lo permette
                     for g in range(N_GIORNI):
@@ -747,7 +766,8 @@ def _verifica(dati: DatiInput, unita: list[_Unita], lezioni: list[Lezione]) -> N
     docenti = {d.nome: d for d in dati.docenti}
     studenti = {s.id: s for s in dati.studenti}
     par = dati.parametri
-    fissati_s1 = {sid for u in unita if u.fissata and u.tipo == TIPO_STRUM1 for sid in u.studenti}
+    conta_fissate = Counter(sid for u in unita if u.fissata and u.tipo == TIPO_STRUM1 for sid in u.studenti)
+    fissati_s1 = {sid for sid, n in conta_fissate.items() if n >= 2}   # tutte e due le ore decise a mano
 
     if len(lezioni) != len(unita):
         errore(f"{len(lezioni)} lezioni prodotte, {len(unita)} attese.")
@@ -837,8 +857,10 @@ def _verifica(dati: DatiInput, unita: list[_Unita], lezioni: list[Lezione]) -> N
             if b.ora == a.ora + 1:
                 errore(f"{et}: le due ore di 1° strumento sono attaccate senza «attaccato = SI».")
             continue
-        errore(f"{et}: le due ore di 1° strumento sono troppo vicine "
-               f"({GIORNI_LUNGHI[a.giorno]} e {GIORNI_LUNGHI[b.giorno]}): ci vuole un giorno in mezzo.")
+        if a.giorno != b.giorno:
+            continue   # due giorni di fila: ammesso (a caro prezzo) quando il docente non dà altro
+        errore(f"{et}: le due ore di 1° strumento sono lo stesso giorno ({GIORNI_LUNGHI[a.giorno]}) "
+               "senza musica da camera quel giorno.")
     for g in dati.gruppi:
         lg = [l for l in lezioni if l.tipo == TIPO_LMC and l.gruppo == g.numero]
         if len(lg) != 1 or lg[0].docente != g.docente or set(lg[0].studenti) != set(g.studenti):
@@ -879,6 +901,13 @@ def _avvisi(orario: Orario) -> list[Problema]:
                 f"le 2 ore di 1° strumento sono nello stesso pomeriggio della musica da camera "
                 f"({GIORNI_LUNGHI[gg[0]]}), una prima e una dopo: viene un giorno solo.",
                 "tutto nel pomeriggio della musica da camera"))
+        elif len(gg) == 2 and gg[1] - gg[0] == 1:
+            avvisi.append(Problema(
+                "avviso", f"{s.cognome} {s.nome} ({s.classe}ª)",
+                f"le 2 ore di 1° strumento sono in due giorni di fila ({GIORNI_LUNGHI[gg[0]]} e "
+                f"{GIORNI_LUNGHI[gg[1]]}): con le ore dichiarate da {s.doc1} e gli altri suoi allievi non c'era "
+                "modo di lasciare un giorno in mezzo.",
+                "2 ore di 1° strumento in giorni di fila (il docente non dà altro)"))
 
     def buchi_di(lezioni: list[Lezione]) -> list[tuple[int, int]]:
         per_giorno: dict[int, set[int]] = defaultdict(set)
@@ -1039,6 +1068,18 @@ def _spiega_unita(dati: DatiInput, unita: list[_Unita], u: _Unita,
         frasi.append(f"Attenzione: il docente ha {len(docente.fasce_a)} A fissate "
                      f"({', '.join(nome_fascia(f) for f in docente.fasce_a)}) e le lezioni della stessa giornata "
                      "devono stare prima dell'accompagnamento: le X dopo una A non sono utilizzabili per le lezioni.")
+    # la regola delle due ore di 1° strumento in giorni diversi stringe anche i docenti con poco margine:
+    # ogni allievo con 2 ore "consuma" due giorni diversi del docente, e i giorni del docente sono pochi
+    if u.tipo in (TIPO_STRUM1, TIPO_STRUM2):
+        con_due_ore = [x for x in dati.studenti if x.doc1 == u.docente and x.ore[0] == 2
+                       and x.primo_separato and not x.giorno_unico]
+        giorni_doc = sorted({giorno_ora(f)[0] for f in docente.fasce_x})
+        if con_due_ore and len(giorni_doc) <= 3:
+            frasi.append(f"Il docente lavora in {len(giorni_doc)} giorni ({', '.join(_giorno(g) for g in giorni_doc)}) e "
+                         f"{len(con_due_ore)} suoi allievi ({', '.join(x.cognome.title() for x in con_due_ore)}) hanno "
+                         "2 ore di 1° strumento che devono stare in due giorni diversi: con così pochi giorni e nessuna "
+                         "ora di margine gli incastri non tornano. Rimedi: un'ora in più al docente in un altro giorno, "
+                         "oppure «1° strumento attaccato = SI» a uno di quegli allievi.")
     for s in studenti:
         if s.giorno_unico:
             docs = [dati.docente(n) for n in (s.doc1, s.doc2) if n]

@@ -60,8 +60,9 @@ Le **2 ore di 1° strumento** (classi 1ª, 2ª e 5ª) vanno in **due giorni con 
 (lunedì e mercoledì, martedì e venerdì…), mai lo stesso giorno né due giorni di fila. Per averle una di
 seguito all'altra si scrive **SI** nella colonna «1° strumento attaccato» del foglio Studenti. Fanno
 eccezione le ore fissate a mano negli abbinamenti, chi ha «Giorno unico = SI» e chi ha la musica da camera,
-che può fare tutto nel suo pomeriggio (un'ora prima, una dopo). Se la disponibilità del docente non lo
-permette, il calcolo si ferma e dice cosa cambiare.
+che può fare tutto nel suo pomeriggio (un'ora prima, una dopo). Quando non c'è altro modo, le due ore vanno
+in due giorni di fila, con un avviso; mai lo stesso giorno. Se il docente ha un giorno solo, il calcolo si
+ferma e dice cosa cambiare.
 
 La colonna **«Minuti per tornare a casa»** la scrive il programma con «Aggiorna trasporti»: è il tempo
 migliore fra le quattro fasce, il dettaglio ora per ora resta nel foglio Trasporti.
