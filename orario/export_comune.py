@@ -216,16 +216,9 @@ def riepilogo(orario: Orario) -> list[tuple[str, object]]:
     """Coppie (voce, valore) con i numeri principali dell'orario."""
     dati = orario.dati
     p = dati.parametri
-    rientri = Counter(orario.rientri_di(s.id) for s in dati.studenti)
-    buchi_tot = sum(orario.buchi_di(s.id) for s in dati.studenti)
     lontani = {s.id for s in dati.studenti if s.km is not None and s.km > p.soglia_km_vicino}
     ultime_lontani = sum(1 for l in orario.lezioni if l.ora == N_ORE - 1
                          and any(x in lontani for x in l.studenti))
-    oltre_max = 0
-    for s in dati.studenti:
-        limite = p.max_rientri_vicini if (s.km is not None and s.km <= p.soglia_km_vicino) else p.max_rientri
-        if orario.rientri_di(s.id) > limite:
-            oltre_max += 1
     n_lmc = sum(1 for l in orario.lezioni if l.tipo == TIPO_LMC)
     n_acc = sum(1 for l in orario.lezioni if l.tipo == TIPO_ACCOMP)
     n_lmi = sum(1 for l in orario.lezioni if l.tipo == TIPO_LMI)
@@ -238,13 +231,6 @@ def riepilogo(orario: Orario) -> list[tuple[str, object]]:
         *([("  di cui laboratori LMI fissati", n_lmi)] if n_lmi else []),
         ("Stato del calcolo", orario.stato or "-"),
         ("Tempo di calcolo (secondi)", round(orario.secondi, 1)),
-        ("Totale buchi (ore libere tra due lezioni)", buchi_tot),
-        ("Studenti senza lezioni", rientri.get(0, 0)),
-        ("Studenti con 1 rientro", rientri.get(1, 0)),
-        ("Studenti con 2 rientri", rientri.get(2, 0)),
-        ("Studenti con 3 rientri", rientri.get(3, 0)),
-        ("Studenti con 4 o più rientri", sum(v for k, v in rientri.items() if k >= 4)),
-        (f"Studenti oltre il massimo rientri ({p.max_rientri}, {p.max_rientri_vicini} entro {p.soglia_km_vicino:g} km)", oltre_max),
         (f"Lezioni alla {ORE_LABEL[-1]} ora di studenti lontani (oltre {p.soglia_km_vicino:g} km)", ultime_lontani),
         ("Avvisi del programma", len(orario.avvisi)),
     ]

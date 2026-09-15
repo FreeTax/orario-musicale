@@ -88,14 +88,14 @@ def _foglio_giorno(wb: Workbook, orario: Orario, g: int, doppi: set[str], mappa)
 
 def _foglio_studenti(wb: Workbook, orario: Orario) -> None:
     ws = wb.create_sheet("Studenti")
-    colonne = ["Classe", "Cognome", "Nome", "KM", "Rientri", "Buchi"] + GIORNI
-    larghezze = [7, 18, 16, 6, 8, 7] + [26] * N_GIORNI
+    colonne = ["Classe", "Cognome", "Nome", "KM"] + GIORNI
+    larghezze = [7, 18, 16, 6] + [26] * N_GIORNI
     for j, (nome, larg) in enumerate(zip(colonne, larghezze), start=1):
         _intestazione(ws.cell(1, j), nome, larg, ws)
     r = 2
     for s in studenti_ordinati(orario.dati):
         lezioni = orario.lezioni_di(s.id)
-        valori = [s.classe, s.cognome.title(), s.nome.title(), s.km, orario.rientri_di(s.id), orario.buchi_di(s.id)]
+        valori = [s.classe, s.cognome.title(), s.nome.title(), s.km]
         for j, v in enumerate(valori, start=1):
             c = ws.cell(r, j, v)
             c.border = BORDO
@@ -104,7 +104,7 @@ def _foglio_studenti(wb: Workbook, orario: Orario) -> None:
             ws.cell(r, 2).fill = GIALLO
         for g in range(N_GIORNI):
             testi = [lezione_per_studente_breve(orario, l) for l in lezioni if l.giorno == g]
-            c = ws.cell(r, 7 + g, "\n".join(testi) or None)
+            c = ws.cell(r, 5 + g, "\n".join(testi) or None)
             c.border = BORDO
             c.alignment = SINISTRA
         ws.row_dimensions[r].height = max(15, 14 * max((sum(1 for l in lezioni if l.giorno == g) for g in range(N_GIORNI)), default=1))

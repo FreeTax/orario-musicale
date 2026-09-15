@@ -36,7 +36,7 @@ from .modello import DatiInput, Docente, Lezione, Orario, Problema, ProblemiErro
 # Versione delle regole e dei pesi: si alza a ogni cambiamento di criterio. Un orario salvato con una
 # versione diversa non è un buon punto di partenza per il ricalcolo: adattandolo si conserverebbe la
 # struttura vecchia (chi sta vicino nelle ore comode, i buchi che le regole nuove eviterebbero).
-VERSIONE_REGOLE = 4
+VERSIONE_REGOLE = 5
 
 # ── Pesi della funzione obiettivo (ordine di importanza decrescente) ──────────
 PESO_BUCO = 1000              # per ogni fascia vuota tra due lezioni dello studente: × (0,4 + 1,1 × lontananza).
@@ -45,8 +45,8 @@ PESO_BUCO = 1000              # per ogni fascia vuota tra due lezioni dello stud
 PESO_RIENTRO_BASE = 600       # per ogni rientro oltre max_rientri: × (1 + 2·km_norm)
 PESO_RIENTRO_VICINO = 150     # idem, per chi abita vicino
 PESO_ORA_TARDIVA = 12         # × ora, per tutti: si riempiono prima le prime fasce del pomeriggio
-PESO_DIST_LONTANO = 200       # × lontananza × ora: chi abita lontano paga caro le ore tarde
-PESO_VICINO_PRESTO = 200      # × (1 − lontananza) × ore che mancano alla fine: chi abita vicino paga le
+PESO_DIST_LONTANO = 300       # × lontananza × ora: chi abita lontano paga caro le ore tarde
+PESO_VICINO_PRESTO = 300      # × (1 − lontananza) × ore che mancano alla fine: chi abita vicino paga le
                               # ore presto, così le prime ore restano a chi viene da fuori. Insieme
                               # valgono meno di un buco: l'ordine per distanza non crea vuoti a nessuno.
 PESO_MINUTO_ARRIVO = 1        # × minuti di ritardo dell'arrivo a casa rispetto al meglio che quel ragazzo può
@@ -66,10 +66,10 @@ PESO_GIORNI_DI_FILA = 4000    # le 2 ore di 1° strumento in due giorni di fila 
 PESO_RIENTRO_LONTANO = 900    # × lontananza², per ogni pomeriggio oltre il primo: per chi viene da lontano
                               # venire un giorno solo è molto importante; per chi sta vicino non conta
 PESO_SENZA_MEZZO = 3000       # lezione in una fascia dopo la quale non c'è un mezzo per tornare a casa
-PESO_ATTESA_INIZIO = 1000     # × ore di attesa fra la fine del mattino e la prima lezione del pomeriggio,
-                              # × (0,08 + 0,92 × lontananza²): per chi viene da lontano cominciare alle 14:30
-                              # è un'ora di buco come le altre (Pippi, Liu: «l'ora di buco è molto scomoda»);
-                              # chi abita a dieci minuti nel frattempo torna a casa, e pesa poco
+# L'attesa fra la fine del mattino e la prima lezione del pomeriggio è un buco a tutti gli effetti
+# («le ore vuote prima dell'inizio della prima lezione sono comunque buco»): dalla metà più lontana
+# dei ragazzi in su pesa esattamente quanto un buco; sotto la metà cala fino a quasi zero, perché chi
+# abita a dieci minuti nel frattempo torna a casa. Il peso è quello del buco × min(1, lontananza / 0,5).
 PESO_BUCO_DOCENTE = 300       # per ogni fascia vuota tra due impegni del docente (sotto i buchi studente)
 PESO_LMC_ATTACCATA = 700      # ora individuale non nello stesso pomeriggio della musica da camera
                               # (sotto il peso di un buco: non conviene creare un vuoto pur di attaccarla)
@@ -468,7 +468,7 @@ class _Modello:
                 m.add(dv <= sum(variabili))
                 giorni_var.append(dv)
                 # attesa fra la fine del mattino e la prima lezione: il pomeriggio cominci presto
-                peso_attesa = round(PESO_ATTESA_INIZIO * (0.08 + 0.92 * km_norm[s.id] ** 2))
+                peso_attesa = round(PESO_BUCO * (0.4 + 1.1 * km_norm[s.id]) * min(1.0, km_norm[s.id] / 0.5))
                 for o in range(N_ORE - 1):
                     prima = [v for v in occ_g[:o + 1] if not isinstance(v, int)]
                     aspetta = m.new_bool_var(f"attesa_{s.riga}_{g}_{o}")

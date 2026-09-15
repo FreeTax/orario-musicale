@@ -17,7 +17,7 @@ from reportlab.platypus import (
 from .costanti import GIORNI, GIORNI_LUNGHI, N_GIORNI, N_ORE, ORE, ORE_FINE, ORE_LABEL
 from .export_comune import (
     LEGENDA, LEGENDA_CASELLE,
-    Cella, cognomi_doppi, etichetta_fascia, giorni_rientro, griglia_docente, griglia_studente,
+    Cella, cognomi_doppi, etichetta_fascia, griglia_docente, griglia_studente,
     studenti_ordinati, titolo_orario,
 )
 from .modello import Orario
@@ -262,16 +262,13 @@ def esporta_pdf_studenti(orario: Orario, percorso: Path) -> Path:
     flussi: list = []
     studenti = studenti_ordinati(orario.dati)
     for i, s in enumerate(studenti):
-        rientri = giorni_rientro(orario, s.id)
         km = f"{s.km:g} km" if s.km is not None else "km non indicati"
-        riass = (f"Rientri: {len(rientri)}" + (f" ({', '.join(rientri)})" if rientri else "")
-                 + f".   Buchi: {orario.buchi_di(s.id)}.")
         blocco = [
             _testo(titolo_orario(orario.dati), st_tit), Spacer(1, 6),
             _testo(f"{s.cognome.title()} {s.nome.title()}", st_nome), Spacer(1, 3),
             _testo(f"Classe {s.classe}ª   |   {km}", st_info), Spacer(1, 8),
             _griglia_settimana(griglia_studente(orario, s.id, doppi), larghezza_utile, 8, 52),
-            Spacer(1, 6), _testo(riass, st_info), Spacer(1, 4), _testo(LEGENDA + " — " + LEGENDA_CASELLE, st_leg),
+            Spacer(1, 6), _testo(LEGENDA + " — " + LEGENDA_CASELLE, st_leg),
         ]
         flussi.append(KeepTogether(blocco))
         if i % 2 == 1:

@@ -20,7 +20,7 @@ from docx.shared import Cm, Pt, RGBColor
 
 from .costanti import GIORNI, GIORNI_LUNGHI, N_GIORNI, N_ORE
 from .export_comune import (
-    LEGENDA, LEGENDA_CASELLE, Cella, Riga, cognomi_doppi, etichetta_fascia, etichetta_fascia_breve, giorni_rientro,
+    LEGENDA, LEGENDA_CASELLE, Cella, Riga, cognomi_doppi, etichetta_fascia, etichetta_fascia_breve,
     griglia_docente, griglia_studente, studenti_ordinati, titolo_orario,
 )
 from .modello import Orario
@@ -251,15 +251,12 @@ def esporta_docx_studenti(orario: Orario, percorso: Path) -> Path:
             _pagina(doc, orizzontale=False)
         elif i:
             _paragrafo(doc, "", 8, dopo=10)
-        rientri = giorni_rientro(orario, s.id)
         distanza = (f"{s.trasporto.minuti_min} min di ritorno" if s.trasporto and s.trasporto.minuti_min is not None
                     else (f"{s.km:g} km" if s.km is not None else ""))
         _paragrafo(doc, titolo_orario(dati), 10, grassetto=True, dopo=2)
         _paragrafo(doc, f"{s.cognome.title()} {s.nome.title()}", 14, grassetto=True, dopo=2)
         _paragrafo(doc, "   |   ".join(x for x in (f"Classe {s.classe}ª", distanza) if x), 9, dopo=6)
         _griglia_settimana(doc, griglia_studente(orario, s.id, doppi), 8, Cm(1.9))
-        _paragrafo(doc, f"Rientri: {len(rientri)}" + (f" ({', '.join(rientri)})" if rientri else "")
-                        + f".   Buchi: {orario.buchi_di(s.id)}.", 9, dopo=0)
     percorso = Path(percorso)
     doc.save(percorso)
     return percorso

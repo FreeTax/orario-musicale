@@ -391,6 +391,28 @@ sono omonimi, e negli LMI questo vale per ogni nome dell'elenco separato da virg
 dati veri: Gori Camilla di 3ª e Gori Yvaine di 5ª) la cella resta come scritta, così è chi compila a
 scegliere. La verifica dei nomi al momento del calcolo accetta entrambe le forme.
 
+**L'attesa prima della prima lezione è un buco (15/9/2026, richiesta di Francesco sull'orario delle 12:16)**:
+«le ore vuote prima dell'inizio della prima lezione sono comunque buco; le prime ore del pomeriggio vanno
+riservate a chi abita lontano». Dalla metà più lontana dei ragazzi in su l'attesa dopo il mattino pesa
+esattamente quanto un buco (1000 × (0,4 + 1,1 kn)); sotto la metà cala linearmente fino a quasi zero, perché
+chi abita a dieci minuti nel frattempo torna a casa. I pesi delle ore presto/tarde salgono a 300. Sul file
+vero i 27 più lontani senza attesa passano da 22 a **26 su 27**; Arcangeli (108 min) da 14:30 a 13:30,
+Boldrini da 2 ore di attesa a zero, Zhou, Bonaguidi e Liu da 2 a 1. I buchi totali salgono da 3 a 8: per
+costruzione finiscono sui vicini, che li pagano 400 invece di 1500.
+
+Due nodi che nessun peso scioglie, e che vanno detti a chi compila:
+- **Spampani / Boldrini**: Boldrini vorrebbe lunedì e mercoledì, ma Ghelardini (2° strumento con Spampani)
+  può venire solo lunedì o giovedì e Spampani lavora lunedì-martedì-mercoledì, quindi il lunedì è suo; l'altra
+  ora del lunedì è di Pratesi, che il mercoledì non può. Boldrini finisce martedì-mercoledì. Rimedio: un'ora
+  di Spampani il giovedì (Ghelardini ci va, e il lunedì si libera).
+- **Vitangeli alle 13:30**: Arcangeli, Chen, Bonaguidi, Tondo Francini, Ghelardini hanno tutti il 1° strumento
+  con lui, quasi tutti lontani, e 2 ore a testa in giorni diversi: dieci lezioni che vorrebbero le cinque
+  13:30 della settimana. Qualcuno comincia per forza alle 14:30; il programma sceglie i meno lontani.
+
+**Niente rientri e buchi nell'export (15/9/2026, richiesta di Francesco)**: tolte le colonne Rientri e Buchi
+dal foglio Studenti dell'Excel, la riga «Rientri: … Buchi: …» dalle pagine degli studenti in PDF e Word, e le
+righe sui rientri e sui buchi dal foglio Controlli. Restano nel programma, nella finestra di fine calcolo.
+
 **La comodità pesa in proporzione alla distanza (15/9/2026, dai commenti di Francesco nel file)**: nella
 colonna Note del foglio Studenti Francesco ha annotato diciassette casi. Il messaggio di fondo: «fai l'orario
 partendo dai più lontani; per loro condensare in un giorno è molto importante; per i vicini chi se ne frega».
