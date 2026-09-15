@@ -160,9 +160,12 @@ def controlla(dati: DatiInput) -> list[Problema]:
             err(dove, "Manca il docente del 2° strumento.")
         elif h2 and s.doc2 not in docenti:
             err(dove, f"Il docente '{s.doc2}' del 2° strumento non è nel foglio {FOGLIO_DOCENTI}.")
-        if s.km is None and s.trasporto is None:
-            avv(dove, "Né KM né tempi dei mezzi: lo studente verrà trattato come se abitasse vicino alla scuola.",
+        if s.km is None and s.trasporto is None and s.minuti_manuali is None:
+            avv(dove, "Né KM, né tempi dei mezzi, né minuti scritti nella colonna «Minuti per tornare a casa»: "
+                      "lo studente verrà trattato come se abitasse vicino alla scuola.",
                 "ragazzi senza distanza né tempi dei mezzi")
+        elif s.minuti_manuali is not None:
+            pass   # il numero scritto nella colonna vale per il calcolo: nessuna approssimazione da segnalare
         elif s.trasporto is not None and "centro del comune" in s.trasporto.esito:
             avv(dove, f"L'indirizzo «{s.indirizzo_completo}» non è sulle mappe: i tempi dei mezzi sono calcolati "
                       "dal centro del comune, quindi approssimati.",
@@ -482,7 +485,9 @@ def controlla(dati: DatiInput) -> list[Problema]:
                 err(dove, "Giorno unico = SI ma non c'è nessun giorno in cui tutti i suoi docenti sono disponibili.")
 
     # ── Trasporti ──
-    con_indirizzo = [s for s in dati.studenti if s.indirizzo_completo]
+    # chi ha i minuti scritti nella colonna «Minuti per tornare a casa» è a posto: quel numero vale per il
+    # calcolo, e spesso è stato aggiustato a mano apposta
+    con_indirizzo = [s for s in dati.studenti if s.indirizzo_completo and s.minuti_manuali is None]
     con_trasporto = [s for s in con_indirizzo if s.trasporto is not None]
     if con_indirizzo and not con_trasporto:
         avv(FOGLIO_STUDENTI, f"{len(con_indirizzo)} studenti hanno l'indirizzo ma i tempi dei mezzi non sono stati calcolati: "

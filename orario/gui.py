@@ -371,9 +371,12 @@ class App(ctk.CTk):
             dati = costruisci_dati(self.tabelle, self.percorso)
         except Exception:
             return 0, 0
+        # è "pronto" chi ha i tempi dei mezzi oppure i minuti già scritti nella colonna
+        # «Minuti per tornare a casa»: quel numero vale per il calcolo, anche se aggiustato a mano
         con_indirizzo = [s for s in dati.studenti if s.indirizzo_completo]
-        n = applica_trasporti(dati, leggi_trasporti(self.percorso))
-        return n, len(con_indirizzo)
+        applica_trasporti(dati, leggi_trasporti(self.percorso))
+        pronti = sum(1 for s in con_indirizzo if s.trasporto is not None or s.minuti_manuali is not None)
+        return pronti, len(con_indirizzo)
 
     def _aggiorna_info_trasporti(self) -> None:
         # può arrivare in ritardo (after) quando la schermata dati è già stata chiusa

@@ -391,6 +391,12 @@ sono omonimi, e negli LMI questo vale per ogni nome dell'elenco separato da virg
 dati veri: Gori Camilla di 3ª e Gori Yvaine di 5ª) la cella resta come scritta, così è chi compila a
 scegliere. La verifica dei nomi al momento del calcolo accetta entrambe le forme.
 
+**I minuti scritti nella colonna bastano (15/9/2026, richiesta di Francesco)**: premendo Calcola il programma
+segnalava «tempi dei mezzi mancanti» anche con la colonna «Minuti per tornare a casa» tutta compilata, perché
+guardava solo il foglio Trasporti. Ora chi ha il numero nella colonna è a posto: niente finestra «Tempi dei
+mezzi mancanti», niente avviso nel riepilogo, pulsante Trasporti con la spunta. È coerente con la regola per
+cui quel numero, spesso aggiustato a mano, è quello che vale per il calcolo.
+
 **L'orario salvato porta la versione delle regole (15/9/2026, dall'audit di un output)**: l'orario delle
 00:35 era peggiore di quello che il motore produce da zero — 8 buchi invece di 1, gradiente per distanza
 debole, 36 scambi vicino/lontano ancora possibili, Fiesoli alle 16:30. Il motivo: era stato calcolato con

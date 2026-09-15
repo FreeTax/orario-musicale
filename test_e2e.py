@@ -471,7 +471,7 @@ class TestControlli(Caso):
         testo = "\n".join(str(a) for a in avvisi)
         self.assertTrue(all(a.livello == "avviso" for a in avvisi))
         self.assertIn("Nessuna lezione assegnata a questo docente", testo)
-        self.assertIn("Né KM né tempi dei mezzi", testo)
+        self.assertIn("Né KM, né tempi dei mezzi", testo)
 
     def test_avviso_ore_consecutive_ignorate(self):
         d = dati_di(studenti=[stud("ROSSI", classe=3, cons="SI")],
