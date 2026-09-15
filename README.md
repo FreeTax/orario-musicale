@@ -67,9 +67,9 @@ ferma e dice cosa cambiare.
 La colonna **«Minuti per tornare a casa»** la scrive il programma con «Aggiorna trasporti»: è il tempo
 migliore fra le quattro fasce, il dettaglio ora per ora resta nel foglio Trasporti.
 
-**Le prime ore vanno a chi abita lontano, le ultime a chi abita vicino**, in proporzione al viaggio e senza
-soglie: chi viene da fuori paga le ore tarde, chi sta a dieci minuti paga quelle presto. Conta **a che ora
-arriva a casa**, non quanto dura il viaggio.
+**La comodità si distribuisce in proporzione alla distanza**, senza soglie: chi viene da lontano ha le prime
+ore, nessuna attesa dopo il mattino, un pomeriggio solo quando si può; chi sta a dieci minuti prende le ore
+tarde e i pomeriggi spezzati. Conta **a che ora arriva a casa**, non quanto dura il viaggio.
 
 Su un file compilato con una versione precedente, **Modifica → Riallinea il formato del file** rimette le
 istruzioni aggiornate, le larghezze delle colonne e i menu a tendina, senza toccare i dati.

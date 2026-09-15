@@ -391,6 +391,36 @@ sono omonimi, e negli LMI questo vale per ogni nome dell'elenco separato da virg
 dati veri: Gori Camilla di 3ª e Gori Yvaine di 5ª) la cella resta come scritta, così è chi compila a
 scegliere. La verifica dei nomi al momento del calcolo accetta entrambe le forme.
 
+**La comodità pesa in proporzione alla distanza (15/9/2026, dai commenti di Francesco nel file)**: nella
+colonna Note del foglio Studenti Francesco ha annotato diciassette casi. Il messaggio di fondo: «fai l'orario
+partendo dai più lontani; per loro condensare in un giorno è molto importante; per i vicini chi se ne frega».
+Due scoperte leggendo i commenti sull'orario delle 11:33:
+
+- quella che Francesco chiama «ora di buco» per Pippi, Liu, Galliani, Gonfiantini è l'**attesa fra la fine
+  del mattino e la prima lezione** (cominciare alle 14:30 invece che alle 13:30): per il modello non era un
+  buco, e costava 120 × (0,3 + 1,7 × lontananza) all'ora contro i 1000 di un buco vero;
+- i vicini con l'orario comodo (Biagini 23 min, Giovannelli 11, Manzo 8, Del Pero, Faraonio) lo avevano
+  perché i pesi della comodità erano uguali per tutti: buco 1000 per chiunque, quindi il modello non aveva
+  motivo di sacrificare un vicino per un lontano.
+
+Ora **ogni termine di comodità è pesato per la lontananza** (`kn`, rango 0-1): buco 1000 × (0,4 + 1,1 kn),
+attesa dopo il mattino 1000 × (0,08 + 0,92 kn²) — al più lontano vale quanto un buco —, pomeriggio in più
+900 × kn², ore presto per i vicini 200 per ora. Lo spostamento nel ricalcolo scende a 380, sotto il buco
+più leggero. Confronto sul file vero (nodo Spampani sciolto con un'ora al giovedì, solo per la prova):
+
+| quartile | ora media | attesa/ragazzo | buchi | rientri | alle 16:30 |
+|---|---|---|---|---|---|
+| più vicini | 1,97 → 2,04 | 3,2 → 3,2 | 2 → 2 | 1,85 → 1,88 | 29 → 31 |
+| vicini | 1,46 → 1,49 | 1,7 → 1,8 | 0 → 0 | 1,65 → 1,65 | 12 → 13 |
+| lontani | 1,08 → 0,91 | 1,04 → 0,81 | 0 → 0 | 1,73 → 1,77 | 6 → 4 |
+| più lontani | 0,62 → 0,60 | 0,11 → 0,11 | 0 → 0 | 1,70 → 1,67 | 1 → 0 |
+
+Pippi (99 min) passa da 14:30-16:30 a 13:30-15:30; Scantamburlo (77 min) da due pomeriggi con 3 ore di
+attesa a uno solo dalle 13:30; Giovannelli (11 min) da 13:30-15:30 in un giorno a due pomeriggi alle ultime
+ore. Restano scomodi i lontani **fissati a mano**: Gonfiantini (Salaris lun 15:30 e gio 15:30), Galliani
+(Mazzei lun 15:30-16:30), Magherini (Perc 2 gio 16:30) — lì il programma non può muovere niente. Gli altri
+margini (Chen, Liu) sono concorrenza sui docenti alle 13:30 e tempo di calcolo (FEASIBLE a 240 s).
+
 **I minuti scritti nella colonna bastano (15/9/2026, richiesta di Francesco)**: premendo Calcola il programma
 segnalava «tempi dei mezzi mancanti» anche con la colonna «Minuti per tornare a casa» tutta compilata, perché
 guardava solo il foglio Trasporti. Ora chi ha il numero nella colonna è a posto: niente finestra «Tempi dei
