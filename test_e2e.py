@@ -542,11 +542,15 @@ def controlla_invarianti(caso: unittest.TestCase, orario) -> None:
             a, b = sorted((l for l in mie if l.tipo == TIPO_STRUM1), key=lambda l: l.fascia)
             caso.assertEqual((a.giorno, b.ora), (b.giorno, a.ora + 1))
             caso.assertTrue(b.due_ore and not a.due_ore)
-        # le 2 ore di 1° strumento in giorni diversi, salvo giorno unico o ore fissate a mano
+        # le 2 ore di 1° strumento con almeno un giorno in mezzo, salvo giorno unico, ore fissate a mano,
+        # o un docente che non offre proprio due giorni distanti (allora la regola cede, segnalandolo)
         fissate = {ab.studente for ab in dati.abbinamenti if ab.tipo == TIPO_STRUM1}
-        if s.primo_separato and h1 == 2 and not s.giorno_unico and s.id not in fissate:
-            a, b = sorted((l for l in mie if l.tipo == TIPO_STRUM1), key=lambda l: l.fascia)
-            caso.assertNotEqual(a.giorno, b.giorno, f"{s.id}: le 2 ore di 1° strumento nello stesso giorno")
+        if s.primo_separato and h1 == 2 and not s.giorno_unico and s.id not in fissate and s.doc1 in docenti:
+            giorni_doc = sorted({f // N_ORE for f in docenti[s.doc1].fasce_x if s.libero(f)})
+            if any(gb - ga >= 2 for ga in giorni_doc for gb in giorni_doc):
+                a, b = sorted((l for l in mie if l.tipo == TIPO_STRUM1), key=lambda l: l.fascia)
+                caso.assertGreaterEqual(b.giorno - a.giorno, 2,
+                                        f"{s.id}: le 2 ore di 1° strumento troppo vicine ({GIORNI[a.giorno]}/{GIORNI[b.giorno]})")
         caso.assertLessEqual(orario.rientri_di(s.id), dati.parametri.max_rientri_vicini)
     # docenti: una lezione per fascia, solo fasce con X (o A per l'accompagnamento)
     visti = set()
@@ -825,11 +829,17 @@ class TestAbbinamentiFissi(Caso):
         controlla_invarianti(self, o)
 
     def test_primo_strumento_attaccato_no_con_un_giorno_solo(self):
-        """Se il docente ha un giorno solo, «NO» è impossibile e il calcolo si ferma spiegandolo."""
-        with self.assertRaises(ProblemiError) as e:
-            controlli.controlla(dati_di(studenti=[stud("ROSSI", cons="NO")],
-                                        docenti=[doc("Bianchi", tutte(giorni=[0])), doc("Verdi", tutte())]))
-        self.assertIn("giorni diversi", str(e.exception))
+        """Se il docente ha un giorno solo, la regola cede: avviso prima, avviso dopo, orario prodotto."""
+        d = dati_di(studenti=[stud("ROSSI", cons="NO")],
+                    docenti=[doc("Bianchi", tutte(giorni=[0])), doc("Verdi", tutte())], timeout=10)
+        avvisi = controlli.controlla(d)
+        self.assertTrue(any("giorni vicini" in a.messaggio for a in avvisi), [str(a) for a in avvisi])
+        o = motore.calcola(d)
+        a, b = sorted((l for l in o.lezioni if l.tipo == TIPO_STRUM1), key=lambda l: l.fascia)
+        self.assertEqual(a.giorno, b.giorno)
+        self.assertTrue(any("1° strumento" in x.messaggio and "stesso giorno" in x.messaggio for x in o.avvisi),
+                        [str(x) for x in o.avvisi])
+        controlla_invarianti(self, o)
 
     def test_laboratorio_lmi_fissato_nel_pomeriggio(self):
         f = fascia(2, 0)  # Mercoledì 13:30
