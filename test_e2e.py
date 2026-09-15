@@ -543,14 +543,15 @@ def controlla_invarianti(caso: unittest.TestCase, orario) -> None:
             caso.assertEqual((a.giorno, b.ora), (b.giorno, a.ora + 1))
             caso.assertTrue(b.due_ore and not a.due_ore)
         # le 2 ore di 1° strumento con almeno un giorno in mezzo, salvo giorno unico, ore fissate a mano,
-        # o un docente che non offre proprio due giorni distanti (allora la regola cede, segnalandolo)
+        # oppure tutte e due nel pomeriggio della musica da camera (mai attaccate senza il SI)
         fissate = {ab.studente for ab in dati.abbinamenti if ab.tipo == TIPO_STRUM1}
-        if s.primo_separato and h1 == 2 and not s.giorno_unico and s.id not in fissate and s.doc1 in docenti:
-            giorni_doc = sorted({f // N_ORE for f in docenti[s.doc1].fasce_x if s.libero(f)})
-            if any(gb - ga >= 2 for ga in giorni_doc for gb in giorni_doc):
-                a, b = sorted((l for l in mie if l.tipo == TIPO_STRUM1), key=lambda l: l.fascia)
-                caso.assertGreaterEqual(b.giorno - a.giorno, 2,
-                                        f"{s.id}: le 2 ore di 1° strumento troppo vicine ({GIORNI[a.giorno]}/{GIORNI[b.giorno]})")
+        if s.primo_separato and h1 == 2 and not s.giorno_unico and s.id not in fissate:
+            a, b = sorted((l for l in mie if l.tipo == TIPO_STRUM1), key=lambda l: l.fascia)
+            if b.giorno - a.giorno < 2:
+                caso.assertEqual(a.giorno, b.giorno, f"{s.id}: 1° strumento in due giorni di fila")
+                caso.assertIn(a.giorno, {l.giorno for l in mie if l.tipo == TIPO_LMC},
+                              f"{s.id}: 1° strumento due volte lo stesso giorno senza musica da camera")
+                caso.assertNotEqual(b.ora, a.ora + 1, f"{s.id}: 1° strumento attaccato senza SI")
         caso.assertLessEqual(orario.rientri_di(s.id), dati.parametri.max_rientri_vicini)
     # docenti: una lezione per fascia, solo fasce con X (o A per l'accompagnamento)
     visti = set()
@@ -587,8 +588,8 @@ class TestMotore(Caso):
 
     def test_caso_minimo(self):
         d = dati_di(studenti=[stud("ROSSI"), stud("NERI", nome="ANNA")],
-                    docenti=[doc("Bianchi", tutte(giorni=[0, 1])),
-                             doc("Verdi", tutte(giorni=[0, 1]), strumenti="VIOLINO")],
+                    docenti=[doc("Bianchi", tutte(giorni=[0, 2])),
+                             doc("Verdi", tutte(giorni=[0, 2]), strumenti="VIOLINO")],
                     timeout=10)
         o = motore.calcola(d)
         self.assertEqual(len(o.lezioni), 6)  # 2 studenti × (2 + 1) ore
@@ -596,8 +597,8 @@ class TestMotore(Caso):
 
     def test_accompagnamento_in_coda(self):
         d = dati_di(studenti=[stud("ROSSI"), stud("NERI", nome="ANNA")],
-                    docenti=[doc("Bianchi", tutte(giorni=[0, 1]), accomp=2),
-                             doc("Verdi", tutte(giorni=[0, 1]))],
+                    docenti=[doc("Bianchi", tutte(giorni=[0, 2]), accomp=2),
+                             doc("Verdi", tutte(giorni=[0, 2]))],
                     timeout=15)
         o = motore.calcola(d)
         acc = [l for l in o.lezioni if l.tipo == TIPO_ACCOMP]
@@ -607,9 +608,9 @@ class TestMotore(Caso):
     def test_fascia_A_contiene_un_accomp(self):
         f_a = fascia(0, 3)
         d = dati_di(studenti=[stud("ROSSI")],
-                    docenti=[{**doc("Bianchi", {f: "X" for f in tutte(giorni=[0, 1])}, accomp=1),
+                    docenti=[{**doc("Bianchi", {f: "X" for f in tutte(giorni=[0, 2])}, accomp=1),
                               FASCE[f_a]: "A"},
-                             doc("Verdi", tutte(giorni=[0, 1]))],
+                             doc("Verdi", tutte(giorni=[0, 2]))],
                     timeout=15)
         o = motore.calcola(d)
         acc = [l for l in o.lezioni if l.tipo == TIPO_ACCOMP]
@@ -737,7 +738,7 @@ class TestAbbinamentiFissi(Caso):
     def test_lezione_bloccata_nella_sua_fascia(self):
         f = fascia(1, 2)  # Martedì 15:30
         d = dati_di(studenti=[stud("ROSSI")],
-                    docenti=[doc("Bianchi", tutte(giorni=[0, 1])), doc("Verdi", tutte(giorni=[0, 1]))],
+                    docenti=[doc("Bianchi", tutte(giorni=[0, 2])), doc("Verdi", tutte(giorni=[0, 2]))],
                     abbinamenti=[abbinamento("Verdi", "Rossi", "Martedì", "15:30", "2° strumento")],
                     timeout=10)
         controlli.controlla(d)
@@ -764,13 +765,13 @@ class TestAbbinamentiFissi(Caso):
     def test_primo_strumento_puo_stare_in_giorni_diversi(self):
         """Senza abbinamenti niente obbliga le 2 ore a essere attaccate: qui non potrebbero esserlo."""
         d = dati_di(studenti=[stud("ROSSI")],
-                    docenti=[doc("Bianchi", [fascia(0, 0), fascia(1, 0)]),   # una sola ora al giorno
+                    docenti=[doc("Bianchi", [fascia(0, 0), fascia(2, 0)]),   # una sola ora al giorno
                              doc("Verdi", tutte())],
                     timeout=10)
         controlli.controlla(d)
         o = motore.calcola(d)
         s1 = sorted(l.fascia for l in o.lezioni if l.tipo == TIPO_STRUM1)
-        self.assertEqual(s1, [fascia(0, 0), fascia(1, 0)])
+        self.assertEqual(s1, [fascia(0, 0), fascia(2, 0)])
         controlla_invarianti(self, o)
 
     def test_primo_strumento_casella_vuota_in_giorni_diversi(self):
@@ -829,22 +830,31 @@ class TestAbbinamentiFissi(Caso):
         controlla_invarianti(self, o)
 
     def test_primo_strumento_attaccato_no_con_un_giorno_solo(self):
-        """Se il docente ha un giorno solo, la regola cede: avviso prima, avviso dopo, orario prodotto."""
-        d = dati_di(studenti=[stud("ROSSI", cons="NO")],
-                    docenti=[doc("Bianchi", tutte(giorni=[0])), doc("Verdi", tutte())], timeout=10)
-        avvisi = controlli.controlla(d)
-        self.assertTrue(any("giorni vicini" in a.messaggio for a in avvisi), [str(a) for a in avvisi])
+        """Se il docente offre solo giorni vicini, il calcolo si ferma prima e dice cosa fare."""
+        with self.assertRaises(ProblemiError) as e:
+            controlli.controlla(dati_di(studenti=[stud("ROSSI", cons="NO")],
+                                        docenti=[doc("Bianchi", tutte(giorni=[0, 1])), doc("Verdi", tutte())]))
+        self.assertIn("giorno in mezzo", str(e.exception))
+        self.assertIn("attaccato = SI", str(e.exception))
+
+    def test_con_la_musica_da_camera_si_condensa(self):
+        """5ª con la LMC: le 2 ore di 1° strumento possono stare nel pomeriggio della LMC, una prima e una dopo."""
+        d = dati_di(studenti=[stud("ROSSI", classe=5, s2="", d2=""),
+                              stud("NERI", classe=5, nome="ANNA", d1="Verdi", s2="", d2="")],
+                    docenti=[doc("Bianchi", tutte(giorni=[3])), doc("Verdi", tutte(giorni=[3])),
+                             doc("Camera", tutte(giorni=[3]))],
+                    gruppi=[gruppo(1, "Camera", "Rossi", "Neri")], timeout=10)
+        controlli.controlla(d)
         o = motore.calcola(d)
-        a, b = sorted((l for l in o.lezioni if l.tipo == TIPO_STRUM1), key=lambda l: l.fascia)
-        self.assertEqual(a.giorno, b.giorno)
-        self.assertTrue(any("1° strumento" in x.messaggio and "stesso giorno" in x.messaggio for x in o.avvisi),
-                        [str(x) for x in o.avvisi])
+        for sid in ("ROSSI MARIO", "NERI ANNA"):
+            ore = sorted((l.ora, l.tipo) for l in o.lezioni_di(sid))
+            self.assertEqual([t for _, t in ore], [TIPO_STRUM1, TIPO_LMC, TIPO_STRUM1], ore)
         controlla_invarianti(self, o)
 
     def test_laboratorio_lmi_fissato_nel_pomeriggio(self):
         f = fascia(2, 0)  # Mercoledì 13:30
         d = dati_di(studenti=[stud("ROSSI"), stud("NERI", nome="ANNA")],
-                    docenti=[doc("Bianchi", tutte(giorni=[0, 1])), doc("Verdi", tutte(giorni=[0, 1])),
+                    docenti=[doc("Bianchi", tutte(giorni=[0, 2])), doc("Verdi", tutte(giorni=[0, 2])),
                              doc("Galli", [], strumenti="ORCHESTRA")],
                     lmi=[lab("FIATI", "Galli", "Rossi", "Neri")],
                     abbinamenti=[abbinamento("", "FIATI", "Mercoledì", "13:30", "Laboratorio LMI")],
@@ -1119,7 +1129,7 @@ class TestExport(Caso):
 
     def test_cognomi_uguali_con_iniziale(self):
         d = dati_di(studenti=[stud("ROSSI", nome="MARIO"), stud("ROSSI", nome="ANNA")],
-                    docenti=[doc("Bianchi", tutte(giorni=[0, 1])), doc("Verdi", tutte(giorni=[0, 1]))],
+                    docenti=[doc("Bianchi", tutte(giorni=[0, 2])), doc("Verdi", tutte(giorni=[0, 2]))],
                     percorso=self.dir / "orario_2026-27.xlsx", timeout=10)
         o = motore.calcola(d)
         out = self.dir / "doppi"

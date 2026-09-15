@@ -57,10 +57,6 @@ PESO_MINUTO_SERA = 2          # × minuti di arrivo a casa dopo le 17:30, per tu
                               # ragazzo può fare, non distingueva chi arriva comunque tardissimo.
 PESO_ULTIMA_LONTANO = 400     # × lontananza: chi abita lontano evita l'ultima fascia, anche quando il viaggio
                               # sarebbe identico (uscire alle 17:30 da lontano è comunque peggio)
-PESO_GIORNI_VICINI = 4000     # le 2 ore di 1° strumento nello stesso giorno o in due giorni di fila.
-                              # Sopra ogni altro peso, e sopra il costo di spostarle entrambe in un
-                              # ricalcolo: si accetta un rientro in più pur di distanziarle. Resta però
-                              # cedevole, perché con la regola rigida certi orari non esisterebbero.
 PESO_RIENTRO_LONTANO = 350    # × lontananza, per ogni pomeriggio oltre il primo: chi viene da lontano
                               # concentra tutto in un giorno anche restando sotto il massimo dei rientri
 PESO_SENZA_MEZZO = 3000       # lezione in una fascia dopo la quale non c'è un mezzo per tornare a casa
@@ -378,25 +374,44 @@ class _Modello:
             if not self.diagnosi and not any(u.fissata for u in s1):
                 for a, b in zip(s1, s1[1:]):
                     m.add(self._pos(a) < self._pos(b))
-            # le 2 ore di 1° strumento in due giorni NON consecutivi (almeno un giorno in mezzo),
-            # salvo un SI esplicito o un abbinamento fisso: se l'ora l'ha scelta una persona, vince lei.
-            # Vietando ogni coppia di giorni vicini (g, g+1) si escludono sia lo stesso giorno sia il
-            # giorno dopo: restano lunedì-mercoledì, lunedì-giovedì, lunedì-venerdì, martedì-giovedì…
-            # vale anche per chi abita lontano: due lezioni dello stesso strumento troppo vicine non
-            # hanno senso, e su questo la distanza da casa non conta
+            # Le 2 ore di 1° strumento in due giorni con almeno un giorno in mezzo (lun/mer, mar/ven…):
+            # regola RIGIDA. Se un docente non offre due giorni distanti il calcolo si ferma e lo dice,
+            # perché due lezioni dello stesso strumento a ridosso non sono accettabili (Pratesi: sax,
+            # pianoforte, sax nello stesso martedì). Eccezioni: «attaccato = SI», «Giorno unico», ore
+            # fissate a mano; e chi ha la musica da camera, che può condensare tutto nel pomeriggio
+            # della musica da camera (un'ora prima, una dopo: mai attaccate, salvo il SI).
+            u_lmc = next((u for u in unita_s if u.tipo == TIPO_LMC), None)
             if (s.primo_separato and len(s1) == 2 and not s.giorno_unico
                     and not any(u.fissata for u in s1)):
+                a, b = s1
+                condensabile = u_lmc is not None
+                s1_in: list = []
+                y: list = []
+                for g in range(N_GIORNI):
+                    giorno = range(fascia(g, 0), fascia(g, 0) + N_ORE)
+                    var_g = [self.x[u.idx, f] for u in s1 for f in giorno if (u.idx, f) in self.x]
+                    s1_in.append(sum(var_g) if var_g else 0)
+                    lmc_g = [self.x[u_lmc.idx, f] for f in giorno if (u_lmc.idx, f) in self.x] if condensabile else []
+                    if lmc_g and len(var_g) > 1:
+                        yg = m.new_bool_var(f"condensa_{s.riga}_{g}")   # tutte e due nel giorno della LMC
+                        m.add(yg <= sum(lmc_g))
+                        m.add(s1_in[g] >= 2 * yg)
+                        y.append(yg)
+                    else:
+                        y.append(0)
+                    m.add(s1_in[g] <= 1 + y[g])
                 for g in range(N_GIORNI - 1):
-                    vicini = [self.x[u.idx, f] for u in s1
-                              for f in range(fascia(g, 0), fascia(g + 1, 0) + N_ORE)
-                              if (u.idx, f) in self.x]
-                    if len(vicini) > 1:
-                        viola = m.new_bool_var(f"vicine_{s.riga}_{g}")
-                        m.add(sum(vicini) - 1 <= viola)
-                        self.costi.append((PESO_GIORNI_VICINI, viola))
+                    m.add(s1_in[g] + s1_in[g + 1] <= 1 + y[g] + y[g + 1])
+                if condensabile:
+                    # nel pomeriggio condensato le due ore non stanno attaccate: solo il SI lo permette
+                    for g in range(N_GIORNI):
+                        for o in range(N_ORE - 1):
+                            f1, f2 = fascia(g, o), fascia(g, o + 1)
+                            for u, v in ((a, b), (b, a)):
+                                if (u.idx, f1) in self.x and (v.idx, f2) in self.x:
+                                    m.add(self.x[u.idx, f1] + self.x[v.idx, f2] <= 1)
             # le ore individuali stanno volentieri nello stesso pomeriggio della musica da camera:
             # senza buchi, "stesso giorno" vuol dire attaccate, prima o dopo la lezione di gruppo
-            u_lmc = next((u for u in unita_s if u.tipo == TIPO_LMC), None)
             individuali = [u for u in unita_s if u.tipo in (TIPO_STRUM1, TIPO_STRUM2)]
             if u_lmc is not None and individuali:
                 for u in individuali:
@@ -808,6 +823,22 @@ def _verifica(dati: DatiInput, unita: list[_Unita], lezioni: list[Lezione]) -> N
             errore(f"{et}: giorno unico non rispettato ({len(giorni)} giorni).")
         if len(giorni) > par.max_rientri_vicini:
             errore(f"{et}: {len(giorni)} rientri, oltre il massimo di {par.max_rientri_vicini}.")
+    for s in dati.studenti:
+        h1 = s.ore[0]
+        if not (s.primo_separato and h1 == 2 and not s.giorno_unico and s.id not in fissati_s1):
+            continue
+        mie = [l for l in lezioni if s.id in l.studenti]
+        a, b = sorted((l for l in mie if l.tipo == TIPO_STRUM1), key=lambda l: l.fascia)
+        et = _etichetta(s)
+        if b.giorno - a.giorno >= 2:
+            continue
+        g_lmc = {l.giorno for l in mie if l.tipo == TIPO_LMC}
+        if a.giorno == b.giorno and a.giorno in g_lmc:
+            if b.ora == a.ora + 1:
+                errore(f"{et}: le due ore di 1° strumento sono attaccate senza «attaccato = SI».")
+            continue
+        errore(f"{et}: le due ore di 1° strumento sono troppo vicine "
+               f"({GIORNI_LUNGHI[a.giorno]} e {GIORNI_LUNGHI[b.giorno]}): ci vuole un giorno in mezzo.")
     for g in dati.gruppi:
         lg = [l for l in lezioni if l.tipo == TIPO_LMC and l.gruppo == g.numero]
         if len(lg) != 1 or lg[0].docente != g.docente or set(lg[0].studenti) != set(g.studenti):
@@ -842,13 +873,12 @@ def _avvisi(orario: Orario) -> list[Problema]:
         if s.ore[0] != 2 or not s.primo_separato or s.giorno_unico:
             continue
         gg = sorted(l.giorno for l in orario.lezioni_di(s.id) if l.tipo == TIPO_STRUM1)
-        if len(gg) == 2 and gg[1] - gg[0] < 2:
-            come = "nello stesso giorno" if gg[0] == gg[1] else "in due giorni di fila"
+        if len(gg) == 2 and gg[0] == gg[1]:
             avvisi.append(Problema(
                 "avviso", f"{s.cognome} {s.nome} ({s.classe}ª)",
-                f"le 2 ore di 1° strumento sono {come} ({GIORNI_LUNGHI[gg[0]]} e {GIORNI_LUNGHI[gg[1]]}): "
-                f"con le ore dichiarate da {s.doc1} non c'era modo di distanziarle di più.",
-                "2 ore di 1° strumento in giorni vicini"))
+                f"le 2 ore di 1° strumento sono nello stesso pomeriggio della musica da camera "
+                f"({GIORNI_LUNGHI[gg[0]]}), una prima e una dopo: viene un giorno solo.",
+                "tutto nel pomeriggio della musica da camera"))
 
     def buchi_di(lezioni: list[Lezione]) -> list[tuple[int, int]]:
         per_giorno: dict[int, set[int]] = defaultdict(set)

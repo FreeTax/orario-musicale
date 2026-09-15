@@ -401,13 +401,23 @@ guadagno dello scambio (~960): la struttura vecchia si conservava. Ora il foglio
 quella del programma, la casella resta spenta e lo dice: «è di una versione precedente: meglio ricalcolare da
 zero». L'adattamento resta la scelta giusta quando cambiano i dati, non quando cambiano le regole.
 
-**Le due ore di 1° strumento mai in giorni di fila (15/9/2026, richiesta di Francesco)**: non basta che
-siano in giorni diversi, fra una lezione e l'altra ci vuole almeno un giorno in mezzo (lunedì-mercoledì,
-martedì-venerdì…). Erano venute fuori Bonacchi lunedì-martedì e Pippi due volte lo stesso lunedì. Il vincolo
-è **cedevole** ma carissimo (`PESO_GIORNI_VICINI = 4000`, sopra il costo di spostare due lezioni in un
-ricalcolo): con la regola rigida l'orario non esisteva proprio, perché a un docente con 9 ore dichiarate e
-solo giorni vicini non resta nessuna coppia valida. Chi resta vicino finisce negli avvisi con il motivo. Le
-eccezioni sono tre: «1° strumento attaccato = SI», «Giorno unico = SI» e le ore fissate a mano.
+**Le due ore di 1° strumento con un giorno in mezzo: regola rigida (15/9/2026, richiesta di Francesco)**:
+ieri sera l'avevo resa cedevole perché con la regola rigida l'orario per Pratesi non esisteva; il risultato è
+stato Pratesi con sax, pianoforte e di nuovo sax lo stesso martedì, che Francesco ha giudicato inaccettabile.
+Ora la regola è **rigida**: fra le due lezioni di 1° strumento ci vuole almeno un giorno libero
+(lunedì-mercoledì, martedì-venerdì…), mai lo stesso giorno né due giorni di fila. Se un docente non offre due
+giorni distanti nelle ore in cui il ragazzo può venire, **il calcolo si ferma prima** e dice le due vie
+d'uscita: «1° strumento attaccato = SI» oppure aprire un altro giorno al docente. Caso concreto: Spampani ha
+lunedì 13:30, martedì e mercoledì (9 ore per 9 richieste, zero margine) e Pratesi il mercoledì ha impegni
+tutto il pomeriggio, quindi gli restano solo lunedì e martedì.
+
+Eccezioni: «attaccato = SI», «Giorno unico = SI», ore fissate a mano, e — su suggerimento di Francesco — chi
+ha la **musica da camera** può condensare tutto nel pomeriggio della musica da camera: un'ora di 1° strumento
+prima, la musica da camera, un'ora dopo. Mai attaccate fra loro, perché due ore di fila le concede solo il SI.
+Vale per tutti, non solo per chi abita lontano (prima avevo messo una soglia di 90 minuti, tolta su sua
+indicazione). Nel modello: per ogni giorno una variabile «tutte e due qui» ammessa solo se quel giorno c'è la
+musica da camera; il tetto di una lezione per giorno e per coppia di giorni vicini si alza di quella variabile.
+La verifica finale controlla tutto questo sull'orario prodotto e negli avvisi compaiono i ragazzi condensati.
 
 **Il pomeriggio unico solo a chi lo chiede (15/9/2026, richiesta di Francesco)**: la scorciatoia «chi abita
 oltre 90 minuti fa tutto lo stesso giorno» è stata tolta, insieme al parametro che la governava. Due lezioni

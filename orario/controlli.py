@@ -459,13 +459,12 @@ def controlla(dati: DatiInput) -> list[Problema]:
             if (ore == 2 and s.primo_separato and doc_nome == s.doc1
                     and not s.giorno_unico and s.id not in s1_fissato):
                 giorni_utili = sorted({f // N_ORE for f in fasce})
-                if not any(b - a >= 2 for a in giorni_utili for b in giorni_utili):
+                if (not any(b - a >= 2 for a in giorni_utili for b in giorni_utili)
+                        and dati.gruppo_di(s.id) is None):   # con la musica da camera può condensare lì
                     quali = ", ".join(GIORNI[g] for g in giorni_utili) or "nessuno"
-                    avv(dove, f"Le 2 ore di 1° strumento dovrebbero stare in due giorni non di fila, ma con "
-                              f"{doc_nome} restano possibili solo giorni vicini ({quali}): finiranno vicine. "
-                              "Per metterle di seguito scrivere «1° strumento attaccato = SI», altrimenti "
-                              "serve una disponibilità in più del docente.",
-                        "2 ore di 1° strumento in giorni vicini")
+                    err(dove, f"Le 2 ore di 1° strumento devono stare in due giorni con un giorno in mezzo, ma "
+                              f"con {doc_nome} restano possibili solo giorni vicini ({quali}). O si scrive "
+                              "«1° strumento attaccato = SI», oppure si apre al docente un altro giorno.")
         if s.giorno_unico:
             # esiste un giorno in cui tutti i suoi docenti hanno disponibilità?
             docs = [docenti[n] for n in (s.doc1, s.doc2) if n in docenti]
