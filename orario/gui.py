@@ -27,7 +27,7 @@ from .costanti import (
 )
 from .lettura import (
     Tabella, aggiorna_minuti_studenti, aggiorna_struttura, aggiorna_totali_docenti, applica_trasporti, costruisci_dati, leggi_orario_precedente, leggi_tabelle, leggi_trasporti,
-    salva_orario_nel_file, salva_tabelle, salva_trasporti,
+    salva_orario_nel_file, salva_tabelle, salva_trasporti, versione_orario_precedente,
 )
 from .modello import Orario, Problema, ProblemiError
 from .template import ISTRUZIONI, crea_nuovo_file, rinfresca_formato
@@ -421,8 +421,16 @@ class App(ctk.CTk):
         except Exception:
             prec = None
         if prec:
-            self.chk_precedente.configure(state="normal", text=f"Parti dall'orario calcolato il {prec[1]} (sposta solo il necessario)")
-            self.usa_precedente.set(True)
+            from .motore import VERSIONE_REGOLE
+            stessa_versione = versione_orario_precedente(self.percorso) == VERSIONE_REGOLE
+            if stessa_versione:
+                self.chk_precedente.configure(state="normal",
+                                              text=f"Parti dall'orario calcolato il {prec[1]} (sposta solo il necessario)")
+            else:
+                self.chk_precedente.configure(state="normal",
+                                              text=f"Parti dall'orario calcolato il {prec[1]} — è di una versione "
+                                                   "precedente del programma: meglio ricalcolare da zero")
+            self.usa_precedente.set(stessa_versione)
         else:
             self.usa_precedente.set(False)
             self.chk_precedente.configure(state="disabled", text="Nessun orario precedente nel file")

@@ -391,6 +391,16 @@ sono omonimi, e negli LMI questo vale per ogni nome dell'elenco separato da virg
 dati veri: Gori Camilla di 3ª e Gori Yvaine di 5ª) la cella resta come scritta, così è chi compila a
 scegliere. La verifica dei nomi al momento del calcolo accetta entrambe le forme.
 
+**L'orario salvato porta la versione delle regole (15/9/2026, dall'audit di un output)**: l'orario delle
+00:35 era peggiore di quello che il motore produce da zero — 8 buchi invece di 1, gradiente per distanza
+debole, 36 scambi vicino/lontano ancora possibili, Fiesoli alle 16:30. Il motivo: era stato calcolato con
+«Parti dall'orario già calcolato» acceso (si accende da solo), quindi adattando l'orario vecchio, fatto con
+le regole vecchie. Ogni lezione tenuta ferma vale 800 punti e spostarne due per uno scambio 1600, più del
+guadagno dello scambio (~960): la struttura vecchia si conservava. Ora il foglio «Orario calcolato» riporta
+`Regole vN` (`motore.VERSIONE_REGOLE`, da alzare a ogni cambio di criterio); se la versione è diversa da
+quella del programma, la casella resta spenta e lo dice: «è di una versione precedente: meglio ricalcolare da
+zero». L'adattamento resta la scelta giusta quando cambiano i dati, non quando cambiano le regole.
+
 **Le due ore di 1° strumento mai in giorni di fila (15/9/2026, richiesta di Francesco)**: non basta che
 siano in giorni diversi, fra una lezione e l'altra ci vuole almeno un giorno in mezzo (lunedì-mercoledì,
 martedì-venerdì…). Erano venute fuori Bonacchi lunedì-martedì e Pippi due volte lo stesso lunedì. Il vincolo

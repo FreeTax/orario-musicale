@@ -33,6 +33,11 @@ from .costanti import (
 )
 from .modello import DatiInput, Docente, Lezione, Orario, Problema, ProblemiError, Studente
 
+# Versione delle regole e dei pesi: si alza a ogni cambiamento di criterio. Un orario salvato con una
+# versione diversa non è un buon punto di partenza per il ricalcolo: adattandolo si conserverebbe la
+# struttura vecchia (chi sta vicino nelle ore comode, i buchi che le regole nuove eviterebbero).
+VERSIONE_REGOLE = 3
+
 # ── Pesi della funzione obiettivo (ordine di importanza decrescente) ──────────
 PESO_BUCO = 1000              # per ogni fascia vuota tra due lezioni dello studente
 PESO_RIENTRO_BASE = 600       # per ogni rientro oltre max_rientri: × (1 + 2·km_norm)

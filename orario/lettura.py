@@ -484,12 +484,15 @@ def salva_orario_nel_file(percorso: Path, orario: Orario) -> None:
 
     Serve al ricalcolo: la volta dopo il programma parte da qui e sposta solo il necessario.
     """
+    from .motore import VERSIONE_REGOLE
+
     wb = load_workbook(percorso)
     if FOGLIO_ORARIO in wb.sheetnames:
         del wb[FOGLIO_ORARIO]
     ws = wb.create_sheet(FOGLIO_ORARIO)
     ws.append(["Docente", "Giorno", "Ora", "Tipo", "Studenti", "Gruppo", "Seconda ora",
-               f"Calcolato il {datetime.now():%d/%m/%Y %H:%M}", "Non modificare a mano: lo scrive il programma."])
+               f"Calcolato il {datetime.now():%d/%m/%Y %H:%M}", "Non modificare a mano: lo scrive il programma.",
+               f"Regole v{VERSIONE_REGOLE}"])
     for l in sorted(orario.lezioni, key=lambda l: (l.docente, l.fascia)):
         ws.append([l.docente, GIORNI[l.giorno], ORE[l.ora], l.tipo, "; ".join(l.studenti),
                    l.gruppo if l.gruppo is not None else "", "SI" if l.due_ore else "NO"])
@@ -497,6 +500,21 @@ def salva_orario_nel_file(percorso: Path, orario: Orario) -> None:
     ws.column_dimensions["E"].width = 60
     ws.column_dimensions["H"].width = 28
     _salva_atomico(wb, percorso)
+
+
+def versione_orario_precedente(percorso: Path) -> int:
+    """Versione delle regole con cui è stato calcolato l'orario salvato nel file (0 se non c'è o è vecchio)."""
+    try:
+        wb = load_workbook(percorso, read_only=True, data_only=True)
+        if FOGLIO_ORARIO not in wb.sheetnames:
+            return 0
+        prima = next(wb[FOGLIO_ORARIO].iter_rows(min_row=1, max_row=1, values_only=True), ())
+    except Exception:
+        return 0
+    for c in prima:
+        if isinstance(c, str) and c.startswith("Regole v") and c[8:].isdigit():
+            return int(c[8:])
+    return 0
 
 
 def leggi_orario_precedente(percorso: Path) -> tuple[list[Lezione], str] | None:
