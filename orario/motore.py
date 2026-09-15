@@ -812,6 +812,23 @@ def _verifica(dati: DatiInput, unita: list[_Unita], lezioni: list[Lezione]) -> N
         lg = [l for l in lezioni if l.tipo == TIPO_LMC and l.gruppo == g.numero]
         if len(lg) != 1 or lg[0].docente != g.docente or set(lg[0].studenti) != set(g.studenti):
             errore(f"gruppo LMC {g.numero} non collocato correttamente.")
+    # abbinamenti fissi: ognuno deve corrispondere a una lezione esattamente lì
+    for ab in dati.abbinamenti:
+        if ab.fascia < 0 or not ab.tipo:
+            continue
+        if ab.tipo == TIPO_LMI:
+            trovata = any(l.tipo == TIPO_LMI and l.docente == ab.docente and l.fascia == ab.fascia for l in lezioni)
+            chi = f"laboratorio {ab.laboratorio}"
+        elif ab.gruppo is not None:
+            trovata = any(l.tipo == TIPO_LMC and l.gruppo == ab.gruppo and l.docente == ab.docente
+                          and l.fascia == ab.fascia for l in lezioni)
+            chi = f"gruppo {ab.gruppo}"
+        else:
+            trovata = any(l.tipo == ab.tipo and l.docente == ab.docente and l.fascia == ab.fascia
+                          and ab.studente in l.studenti for l in lezioni)
+            chi = ab.studente.title()
+        if not trovata:
+            errore(f"abbinamento fisso (riga {ab.riga}) non rispettato: {ab.docente} con {chi} {nome_fascia(ab.fascia)}.")
 
 
 # ── Avvisi sulle preferenze non soddisfatte ──────────────────────────────────
