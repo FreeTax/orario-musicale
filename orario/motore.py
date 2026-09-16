@@ -71,7 +71,9 @@ PESO_SENZA_MEZZO = 3000       # lezione in una fascia dopo la quale non c'è un 
 # dei ragazzi in su pesa esattamente quanto un buco; sotto la metà cala fino a quasi zero, perché chi
 # abita a dieci minuti nel frattempo torna a casa. Il peso è quello del buco × min(1, lontananza / 0,5).
 PESO_BUCO_DOCENTE = 300       # per ogni fascia vuota tra due impegni del docente (sotto i buchi studente)
-PESO_LMC_ATTACCATA = 700      # ora individuale non nello stesso pomeriggio della musica da camera
+PESO_LMC_ATTACCATA = 700      # × (0,4 + 1,2 × lontananza): ora individuale non nello stesso pomeriggio della
+                              # musica da camera. Per chi viene da lontano condensare conta di più (1100 al più
+                              # lontano, 280 al più vicino, che può anche venire tre pomeriggi)
                               # (sotto il peso di un buco: non conviene creare un vuoto pur di attaccarla)
 PESO_SPOSTAMENTO = 380        # ricalcolo: lezione spostata rispetto all'orario precedente. Sotto il peso
                               # del buco più leggero (400, chi abita vicino): adattare l'orario esistente
@@ -269,8 +271,9 @@ def _km_norm(dati: DatiInput) -> dict[str, float]:
 
 
 def _vicino(s: Studente, dati: DatiInput) -> bool:
-    if s.trasporto is not None and s.trasporto.minuti_min is not None:
-        return s.trasporto.minuti_min < dati.parametri.soglia_min_vicino
+    """Abita vicino: minuti scritti nella colonna o dei mezzi sotto la soglia; senza minuti, i km."""
+    if s.minuti_manuali is not None or (s.trasporto is not None and s.trasporto.minuti_min is not None):
+        return s.minuti_ritorno < dati.parametri.soglia_min_vicino
     return s.km is None or s.km < dati.parametri.soglia_km_vicino
 
 
@@ -431,7 +434,7 @@ class _Modello:
                     if insieme:
                         attaccata = m.new_bool_var(f"attaccata_{s.riga}_{u.idx}")
                         m.add(attaccata == sum(insieme))
-                        self.costi.append((PESO_LMC_ATTACCATA, 1 - attaccata))
+                        self.costi.append((round(PESO_LMC_ATTACCATA * (0.4 + 1.2 * km_norm[s.id])), 1 - attaccata))
 
             # giorni con almeno una lezione
             giorni_var: list = []

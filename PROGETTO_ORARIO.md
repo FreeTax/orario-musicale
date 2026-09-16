@@ -391,6 +391,18 @@ sono omonimi, e negli LMI questo vale per ogni nome dell'elenco separato da virg
 dati veri: Gori Camilla di 3ª e Gori Yvaine di 5ª) la cella resta come scritta, così è chi compila a
 scegliere. La verifica dei nomi al momento del calcolo accetta entrambe le forme.
 
+**Condensare per chi ha la musica da camera, senza mai due ore di 1° strumento insieme (16/9/2026, richiesta
+di Francesco)**: la forma ideale dipende dalla classe. **3ª e 4ª** (1° + 2° + LMC, tre lezioni diverse): tutto
+in un pomeriggio, soprattutto per chi viene da lontano. **5ª** (2 ore di 1° + LMC): un giorno 1° strumento +
+LMC, un altro giorno l'altra ora di 1° strumento — mai le due ore insieme senza il SI. Più uno abita vicino
+più può spezzare, fino a tre pomeriggi. Il modello già lo faceva in gran parte (la preferenza per l'ora
+individuale nel pomeriggio della musica da camera c'era dal 9/9); ora quel peso è **proporzionale alla
+distanza**, 700 × (0,4 + 1,2 kn): 1100 al più lontano, 280 al più vicino. Corretto anche `_vicino`, che
+ignorava i minuti scritti a mano nella colonna. Sul file vero, metà più lontana: 3ª in un giorno 6 → 7 su 9,
+4ª 6 su 6, 5ª nella forma ideale 7 su 10 (gli altri 3 sono fissati a mano o con il SI). I due di 3ª/4ª
+lontani rimasti su due giorni (Ioanna, Bambini) dipendono dal giorno del loro gruppo di musica da camera,
+che è un compromesso fra tutti i membri.
+
 **Mai lo stesso giorno, nemmeno con la musica da camera (16/9/2026, richiesta di Francesco)**: Pippi (5ª) si
 era trovata le due ore di 1° strumento lo stesso lunedì, una prima e una dopo la musica da camera, per
 l'eccezione che avevo introdotto il 15/9 su un suggerimento poi ritirato. Francesco: «se non è detto SI nella
