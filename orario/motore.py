@@ -36,7 +36,7 @@ from .modello import DatiInput, Docente, Lezione, Orario, Problema, ProblemiErro
 # Versione delle regole e dei pesi: si alza a ogni cambiamento di criterio. Un orario salvato con una
 # versione diversa non è un buon punto di partenza per il ricalcolo: adattandolo si conserverebbe la
 # struttura vecchia (chi sta vicino nelle ore comode, i buchi che le regole nuove eviterebbero).
-VERSIONE_REGOLE = 8
+VERSIONE_REGOLE = 9
 
 # ── Pesi della funzione obiettivo (ordine di importanza decrescente) ──────────
 #
@@ -57,9 +57,10 @@ PESO_RIENTRO_BASE = 600       # per ogni rientro oltre max_rientri: × (1 + 2·k
 PESO_RIENTRO_VICINO = 150     # idem, per chi abita vicino
 PESO_ORA_TARDIVA = 12         # × ora, per tutti: si riempiono prima le prime fasce del pomeriggio
 PESO_DIST_LONTANO = 250       # × priorità × ora: chi abita lontano paga caro le ore tarde (750 all'ora)
-PESO_COMPENSO_TRE = 200       # × ora, per ogni lezione di chi viene TRE pomeriggi: chi paga già il terzo
+PESO_COMPENSO_TRE = 450       # × ora, per ogni lezione di chi viene TRE pomeriggi: chi paga già il terzo
                               # rientro (di solito obbligato dai docenti) non deve pagare anche le ore tarde.
-                              # È un compenso, non una priorità: le 13:30 restano prima ai lontani
+                              # A 200 non bastava: davanti a Scalzini (35') c'erano sempre ragazzi da 60'.
+                              # Con 450 vale quanto la priorità di un ragazzo a metà classifica
 PESO_VICINO_PRESTO = 300      # × (1 − lontananza) × ore che mancano alla fine: chi abita vicino paga le
                               # ore presto, così le prime ore restano a chi viene da fuori. Insieme
                               # valgono meno di un buco: l'ordine per distanza non crea vuoti a nessuno.

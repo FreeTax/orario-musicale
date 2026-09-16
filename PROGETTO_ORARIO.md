@@ -394,7 +394,9 @@ scegliere. La verifica dei nomi al momento del calcolo accetta entrambe le forme
 **Compenso a chi viene tre pomeriggi (16/9/2026, richiesta di Francesco)**: Scalzini (35 minuti) è costretta a
 tre pomeriggi dai docenti (Francini solo il venerdì) e, essendo "quasi vicina", prendeva anche le ore tarde:
 pagava due volte. Ora per chi ha tre rientri ogni lezione dalla seconda ora in su costa `PESO_COMPENSO_TRE =
-200 × ora` in più. È un compenso, non una priorità: le 13:30 restano prima ai lontani, e Greco e Kozmina
+450 × ora` in più (a 200 non bastava: davanti a lei, nelle ore di Bartolozzi, c'erano sempre ragazzi da
+60 minuti, e restava alle 16:30; con 450 vale quanto la priorità di un ragazzo a metà classifica e passa a
+15:30/14:30/14:30 senza togliere niente ai 27 più lontani — versione regole 9). È un compenso, non una priorità: le 13:30 restano prima ai lontani, e Greco e Kozmina
 (10 minuti, tre volte alle 16:30) non cambiano. Nel modello: una variabile `tre` legata a `rientri ≥ 3` e,
 per ogni fascia non prima, il prodotto `tre ∧ occupata`. Sul file vero Scalzini passa da 14:30/15:30/15:30 a
 15:30/15:30/**13:30** (il venerdì con Francini, dove non compete con i lontani di Bartolozzi). Versione regole 8.
