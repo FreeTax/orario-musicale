@@ -262,11 +262,10 @@ def esporta_pdf_studenti(orario: Orario, percorso: Path) -> Path:
     flussi: list = []
     studenti = studenti_ordinati(orario.dati)
     for i, s in enumerate(studenti):
-        km = f"{s.km:g} km" if s.km is not None else "km non indicati"
         blocco = [
             _testo(titolo_orario(orario.dati), st_tit), Spacer(1, 6),
             _testo(f"{s.cognome.title()} {s.nome.title()}", st_nome), Spacer(1, 3),
-            _testo(f"Classe {s.classe}ª   |   {km}", st_info), Spacer(1, 8),
+            _testo(f"Classe {s.classe}ª", st_info), Spacer(1, 8),
             _griglia_settimana(griglia_studente(orario, s.id, doppi), larghezza_utile, 8, 52),
             Spacer(1, 6), _testo(LEGENDA + " — " + LEGENDA_CASELLE, st_leg),
         ]

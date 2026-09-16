@@ -134,7 +134,7 @@ vanno rifatte o copiate; in futuro si può fare uno script di aggiornamento che 
 | Foglio | Contenuto | Stato precompilazione |
 |--------|-----------|-----------------------|
 | Istruzioni | Come compilare | completo |
-| Studenti | Classe, Cognome, Nome, Strumento 1, Docente 1, Strumento 2, Docente 2, 1° strumento attaccato (SI/NO), Giorno unico (SI/NO), Giorni NON disponibili, Comune, Indirizzo, Civico, KM, Minuti per tornare a casa, Note | 109 ragazzi; 81 con KM; le celle da completare sono **gialle** |
+| Studenti | Classe, Cognome, Nome, Strumento 1, Docente 1, Strumento 2, Docente 2, 1° strumento attaccato (SI/NO), Giorno unico (SI/NO), Giorni NON disponibili, Comune, Indirizzo, Civico, KM (non usati dal calcolo), Minuti per tornare a casa, Note | 109 ragazzi; 81 con KM; le celle da completare sono **gialle** |
 | Impegni studenti | Classe, Cognome, Nome + 20 colonne Lun 13:30 … Ven 16:30 (X = il ragazzo **non** può esserci), Note | vuoto; il pulsante «Copia i nomi dagli studenti» lo riempie |
 | Docenti | Docente, Strumento/i, **5 aule** (una per giorno), **Ore accompagnamento** (numero), 20 colonne Lun 13:30 … Ven 16:30 (X = disponibile, vuoto = no, A = ora di accompagnamento fissata a mano), **Ore dichiarate**, Note; in fondo la riga **TOTALE** | 21 docenti; aule dell'anno scorso; disponibilità **vuote** |
 | Gruppi LMC | Gruppo, Docente, Studente 1…5, Note | vuoto, con 2 righe di esempio grigie da cancellare; i gruppi li fornisce lo zio |
@@ -390,6 +390,27 @@ i ragazzi (si può anche digitare); scrivendo solo il cognome, il nome viene agg
 sono omonimi, e negli LMI questo vale per ogni nome dell'elenco separato da virgole. Con gli omonimi (nei
 dati veri: Gori Camilla di 3ª e Gori Yvaine di 5ª) la cella resta come scritta, così è chi compila a
 scegliere. La verifica dei nomi al momento del calcolo accetta entrambe le forme.
+
+**La distanza in minuti dà la priorità; i km non contano più (16/9/2026, richiesta di Francesco)**: sull'orario
+delle 12:46 Boldrini (83 min) veniva tre pomeriggi e Arcangeli (108 min) aveva un'ora di buco. Francesco: «più
+sei lontano, maggiore priorità hai». Ora ogni termine di comodità di un ragazzo (buco, attesa dopo il mattino,
+pomeriggio in più, ore tarde, ora individuale lontana dalla musica da camera) è moltiplicato per una
+**priorità** = 0,15 + 2,85 × kn², con kn il rango della lontananza: 3,0 al più lontano, 0,86 a metà, 0,15 al più
+vicino. Un buco del più lontano vale 3000, venti volte quello del più vicino: l'orario si costruisce partendo
+dai lontani, i vicini prendono quello che resta. Versione regole 7.
+
+**I km non contano**: la distanza è solo tempo (colonna «Minuti per tornare a casa», altrimenti i mezzi);
+senza nessuna informazione il ragazzo vale come vicino, con un avviso. La colonna KM resta nel file di input
+ma non viene letta dal calcolo. Negli export non compaiono più né km né minuti: nelle pagine degli studenti
+resta solo la classe; tolte anche la colonna KM dell'Excel e la riga «lezioni all'ultima ora di studenti
+lontani» del foglio Controlli.
+
+**Boldrini: tre pomeriggi obbligati dai dati, non dai pesi.** Spampani (1° strumento) lavora lunedì, martedì e
+mercoledì; Violino 2 (2° strumento) solo il venerdì; le due ore di 1° strumento non possono stare lo stesso
+giorno. Quindi: due giorni per il 1° strumento fra lun/mar/mer, più il venerdì. Nessun peso può evitarlo. Il
+controllo preliminare ora se ne accorge e lo dice prima del calcolo, per ogni ragazzo non vicino: «Per forza
+TRE pomeriggi: … Rimedi: «1° strumento attaccato = SI», oppure un'ora di uno dei due docenti in un giorno
+dell'altro». Per Boldrini: SI (due ore di sax di seguito, e viene due pomeriggi) o Violino 2 un giorno in più.
 
 **Condensare per chi ha la musica da camera, senza mai due ore di 1° strumento insieme (16/9/2026, richiesta
 di Francesco)**: la forma ideale dipende dalla classe. **3ª e 4ª** (1° + 2° + LMC, tre lezioni diverse): tutto

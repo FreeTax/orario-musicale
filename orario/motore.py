@@ -36,16 +36,27 @@ from .modello import DatiInput, Docente, Lezione, Orario, Problema, ProblemiErro
 # Versione delle regole e dei pesi: si alza a ogni cambiamento di criterio. Un orario salvato con una
 # versione diversa non è un buon punto di partenza per il ricalcolo: adattandolo si conserverebbe la
 # struttura vecchia (chi sta vicino nelle ore comode, i buchi che le regole nuove eviterebbero).
-VERSIONE_REGOLE = 6
+VERSIONE_REGOLE = 7
 
 # ── Pesi della funzione obiettivo (ordine di importanza decrescente) ──────────
-PESO_BUCO = 1000              # per ogni fascia vuota tra due lezioni dello studente: × (0,4 + 1,1 × lontananza).
-                              # Per chi viene da lontano un buco è il peggio che ci sia (1500 al più lontano);
-                              # per chi abita a dieci minuti pesa meno (400): può anche tornare a casa
+#
+# La distanza in minuti da scuola dà la PRIORITÀ: più uno è lontano, più la sua comodità pesa.
+# Ogni termine di comodità di un ragazzo è moltiplicato per _priorita(kn), con kn il rango della
+# lontananza fra 0 (il più vicino) e 1 (il più lontano):
+#     priorità = 0,15 + 2,85 × kn²      → 3,0 al più lontano, 0,86 a metà, 0,15 al più vicino
+# Un buco del più lontano vale venti volte un buco del più vicino: l'orario si costruisce
+# partendo dai lontani, e i vicini prendono quello che resta.
+
+
+def _priorita(kn: float) -> float:
+    return 0.15 + 2.85 * kn * kn
+
+PESO_BUCO = 1000              # per ogni fascia vuota tra due lezioni dello studente, × priorità:
+                              # 3000 al più lontano, 150 al più vicino (che può anche tornare a casa)
 PESO_RIENTRO_BASE = 600       # per ogni rientro oltre max_rientri: × (1 + 2·km_norm)
 PESO_RIENTRO_VICINO = 150     # idem, per chi abita vicino
 PESO_ORA_TARDIVA = 12         # × ora, per tutti: si riempiono prima le prime fasce del pomeriggio
-PESO_DIST_LONTANO = 300       # × lontananza × ora: chi abita lontano paga caro le ore tarde
+PESO_DIST_LONTANO = 250       # × priorità × ora: chi abita lontano paga caro le ore tarde (750 all'ora)
 PESO_VICINO_PRESTO = 300      # × (1 − lontananza) × ore che mancano alla fine: chi abita vicino paga le
                               # ore presto, così le prime ore restano a chi viene da fuori. Insieme
                               # valgono meno di un buco: l'ordine per distanza non crea vuoti a nessuno.
@@ -63,17 +74,18 @@ PESO_GIORNI_DI_FILA = 4000    # le 2 ore di 1° strumento in due giorni di fila 
                               # mezzo. Sopra ogni altro peso: succede solo quando il docente non dà altro,
                               # anche per la concorrenza fra i suoi allievi (Spampani ha un'ora sola il lunedì
                               # e due allievi che la vorrebbero entrambi). Lo stesso giorno resta vietato.
-PESO_RIENTRO_LONTANO = 900    # × lontananza², per ogni pomeriggio oltre il primo: per chi viene da lontano
-                              # venire un giorno solo è molto importante; per chi sta vicino non conta
+PESO_RIENTRO_LONTANO = 700    # × priorità, per ogni pomeriggio oltre il primo: per chi viene da lontano
+                              # venire un giorno solo è molto importante (2100 a pomeriggio); per chi sta
+                              # vicino quasi non conta
 PESO_SENZA_MEZZO = 3000       # lezione in una fascia dopo la quale non c'è un mezzo per tornare a casa
 # L'attesa fra la fine del mattino e la prima lezione del pomeriggio è un buco a tutti gli effetti
 # («le ore vuote prima dell'inizio della prima lezione sono comunque buco»): dalla metà più lontana
 # dei ragazzi in su pesa esattamente quanto un buco; sotto la metà cala fino a quasi zero, perché chi
 # abita a dieci minuti nel frattempo torna a casa. Il peso è quello del buco × min(1, lontananza / 0,5).
 PESO_BUCO_DOCENTE = 300       # per ogni fascia vuota tra due impegni del docente (sotto i buchi studente)
-PESO_LMC_ATTACCATA = 700      # × (0,4 + 1,2 × lontananza): ora individuale non nello stesso pomeriggio della
-                              # musica da camera. Per chi viene da lontano condensare conta di più (1100 al più
-                              # lontano, 280 al più vicino, che può anche venire tre pomeriggi)
+PESO_LMC_ATTACCATA = 500      # × priorità: ora individuale non nello stesso pomeriggio della musica da camera.
+                              # Per chi viene da lontano condensare conta di più (1500); il vicino può anche
+                              # venire tre pomeriggi
                               # (sotto il peso di un buco: non conviene creare un vuoto pur di attaccarla)
 PESO_SPOSTAMENTO = 380        # ricalcolo: lezione spostata rispetto all'orario precedente. Sotto il peso
                               # del buco più leggero (400, chi abita vicino): adattare l'orario esistente
@@ -271,18 +283,16 @@ def _km_norm(dati: DatiInput) -> dict[str, float]:
 
 
 def _vicino(s: Studente, dati: DatiInput) -> bool:
-    """Abita vicino: minuti scritti nella colonna o dei mezzi sotto la soglia; senza minuti, i km."""
-    if s.minuti_manuali is not None or (s.trasporto is not None and s.trasporto.minuti_min is not None):
-        return s.minuti_ritorno < dati.parametri.soglia_min_vicino
-    return s.km is None or s.km < dati.parametri.soglia_km_vicino
+    """Abita vicino: minuti per tornare a casa (colonna o mezzi) sotto la soglia. I km non contano."""
+    return s.minuti_ritorno < dati.parametri.soglia_min_vicino
 
 
 def _etichetta(s: Studente, con_km: bool = False) -> str:
     testo = f"{s.cognome.title()} {s.nome.title()} ({s.classe}ª"
     if con_km and s.trasporto is not None and s.trasporto.minuti_min is not None:
         testo += f", {s.trasporto.minuti_min} min di ritorno"
-    elif con_km and s.km is not None:
-        testo += f", {s.km:g} km"
+    elif con_km and s.minuti_manuali is not None:
+        testo += f", {s.minuti_manuali:g} min"
     return testo + ")"
 
 
@@ -434,7 +444,7 @@ class _Modello:
                     if insieme:
                         attaccata = m.new_bool_var(f"attaccata_{s.riga}_{u.idx}")
                         m.add(attaccata == sum(insieme))
-                        self.costi.append((round(PESO_LMC_ATTACCATA * (0.4 + 1.2 * km_norm[s.id])), 1 - attaccata))
+                        self.costi.append((round(PESO_LMC_ATTACCATA * _priorita(km_norm[s.id])), 1 - attaccata))
 
             # giorni con almeno una lezione
             giorni_var: list = []
@@ -449,7 +459,7 @@ class _Modello:
                 m.add(dv <= sum(variabili))
                 giorni_var.append(dv)
                 # attesa fra la fine del mattino e la prima lezione: il pomeriggio cominci presto
-                peso_attesa = round(PESO_BUCO * (0.4 + 1.1 * km_norm[s.id]) * min(1.0, km_norm[s.id] / 0.5))
+                peso_attesa = round(PESO_BUCO * _priorita(km_norm[s.id]) * min(1.0, km_norm[s.id] / 0.5))
                 for o in range(N_ORE - 1):
                     prima = [v for v in occ_g[:o + 1] if not isinstance(v, int)]
                     aspetta = m.new_bool_var(f"attesa_{s.riga}_{g}_{o}")
@@ -463,7 +473,7 @@ class _Modello:
                 # ogni pomeriggio in più costa a chi abita lontano, anche sotto il massimo dei rientri
                 oltre_il_primo = m.new_int_var(0, len(giorni_var), f"gg_{s.riga}")
                 m.add(oltre_il_primo >= rientri - 1)
-                self.costi.append((round(PESO_RIENTRO_LONTANO * km_norm[s.id] ** 2), oltre_il_primo))
+                self.costi.append((round(PESO_RIENTRO_LONTANO * _priorita(km_norm[s.id])), oltre_il_primo))
             if giorni_var:
                 m.add(rientri <= par.max_rientri_vicini)
                 if s.giorno_unico:
@@ -490,7 +500,7 @@ class _Modello:
                 o = giorno_ora(f)[1]
                 # criterio principale (uguale con km o con mezzi): le prime ore a chi abita lontano,
                 # le ultime a chi abita vicino
-                c = round((PESO_ORA_TARDIVA + PESO_DIST_LONTANO * kn) * o
+                c = round((PESO_ORA_TARDIVA + PESO_DIST_LONTANO * _priorita(kn)) * o
                           + PESO_VICINO_PRESTO * (1 - kn) * (N_ORE - 1 - o))
                 if o == N_ORE - 1 and kn:
                     c += round(PESO_ULTIMA_LONTANO * kn)   # i lontani saltano l'ultima ora
@@ -507,7 +517,7 @@ class _Modello:
                             c += PESO_MINUTO_SERA * max(0, casa - ARRIVO_SERA)
                 if c:
                     self.costi.append((c, v))
-            peso_buco = round(PESO_BUCO * (0.4 + 1.1 * km_norm[s.id]))
+            peso_buco = round(PESO_BUCO * _priorita(km_norm[s.id]))
             for b in self.buchi_stud[s.id]:
                 self.costi.append((peso_buco, b))
 

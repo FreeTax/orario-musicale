@@ -66,9 +66,10 @@ Se il docente ha un giorno solo, il calcolo si ferma e dice cosa cambiare.
 La colonna **«Minuti per tornare a casa»** la scrive il programma con «Aggiorna trasporti»: è il tempo
 migliore fra le quattro fasce, il dettaglio ora per ora resta nel foglio Trasporti.
 
-**La comodità si distribuisce in proporzione alla distanza**, senza soglie: chi viene da lontano ha le prime
-ore, nessuna attesa dopo il mattino, un pomeriggio solo quando si può; chi sta a dieci minuti prende le ore
-tarde e i pomeriggi spezzati. Conta **a che ora arriva a casa**, non quanto dura il viaggio.
+**La distanza in minuti da scuola dà la priorità**: più uno è lontano, più la sua comodità pesa — prime ore,
+nessuna attesa dopo il mattino, un pomeriggio solo quando si può. Chi sta a dieci minuti prende le ore tarde e
+i pomeriggi spezzati. Conta solo il tempo (colonna «Minuti per tornare a casa», altrimenti i mezzi): i KM non
+entrano nel calcolo e non compaiono negli export.
 
 Su un file compilato con una versione precedente, **Modifica → Riallinea il formato del file** rimette le
 istruzioni aggiornate, le larghezze delle colonne e i menu a tendina, senza toccare i dati.

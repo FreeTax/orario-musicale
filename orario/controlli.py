@@ -160,10 +160,22 @@ def controlla(dati: DatiInput) -> list[Problema]:
             err(dove, "Manca il docente del 2° strumento.")
         elif h2 and s.doc2 not in docenti:
             err(dove, f"Il docente '{s.doc2}' del 2° strumento non è nel foglio {FOGLIO_DOCENTI}.")
-        if s.km is None and s.trasporto is None and s.minuti_manuali is None:
-            avv(dove, "Né KM, né tempi dei mezzi, né minuti scritti nella colonna «Minuti per tornare a casa»: "
-                      "lo studente verrà trattato come se abitasse vicino alla scuola.",
+        if s.trasporto is None and s.minuti_manuali is None:
+            avv(dove, "Né minuti scritti nella colonna «Minuti per tornare a casa» né tempi dei mezzi: "
+                      "lo studente verrà trattato come se abitasse vicino alla scuola (i KM non contano).",
                 "ragazzi senza distanza né tempi dei mezzi")
+        # tre pomeriggi obbligati: il 2° strumento cade in giorni in cui il 1° non c'è, e le 2 ore di
+        # 1° strumento devono stare in giorni diversi. Per chi viene da lontano è inaccettabile: si dice prima.
+        if h1 == 2 and h2 and s.primo_separato and not s.giorno_unico and s.doc1 in docenti and s.doc2 in docenti:
+            g1 = {f // N_ORE for f in docenti[s.doc1].fasce_x if s.libero(f)}
+            g2 = {f // N_ORE for f in docenti[s.doc2].fasce_x if s.libero(f)}
+            if g1 and g2 and not (g1 & g2) and s.minuti_ritorno >= dati.parametri.soglia_min_vicino:
+                avv(dove, f"Per forza TRE pomeriggi: {s.doc1} (1° strumento) c'è solo "
+                          f"{', '.join(GIORNI[g] for g in sorted(g1))}, {s.doc2} (2° strumento) solo "
+                          f"{', '.join(GIORNI[g] for g in sorted(g2))}, e le 2 ore di 1° strumento vanno in giorni "
+                          f"diversi. Abita a {round(s.minuti_ritorno)} minuti. Rimedi: «1° strumento attaccato = SI», "
+                          "oppure un'ora di uno dei due docenti in un giorno dell'altro.",
+                    "ragazzi lontani costretti a tre pomeriggi")
         elif s.minuti_manuali is not None:
             pass   # il numero scritto nella colonna vale per il calcolo: nessuna approssimazione da segnalare
         elif s.trasporto is not None and "centro del comune" in s.trasporto.esito:

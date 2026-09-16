@@ -56,13 +56,13 @@ class Studente:
 
     @property
     def minuti_ritorno(self) -> float:
-        """Quanto ci mette a tornare a casa, in minuti: dai mezzi se ci sono, altrimenti stimati dai km."""
+        """Quanto ci mette a tornare a casa, in minuti: la colonna scritta a mano, altrimenti i mezzi.
+
+        I km non contano: la distanza è solo tempo. Senza nessuna informazione vale 0 (vicino)."""
         if self.minuti_manuali is not None:
             return float(self.minuti_manuali)
         if self.trasporto is not None and self.trasporto.minuti_min is not None:
             return float(self.trasporto.minuti_min)
-        if self.km is not None:
-            return 10.0 + 2.5 * self.km
         return 0.0
 
     @property
