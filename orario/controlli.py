@@ -463,8 +463,7 @@ def controlla(dati: DatiInput) -> list[Problema]:
             if (ore == 2 and s.primo_separato and doc_nome == s.doc1
                     and not s.giorno_unico and s.id not in s1_fissato):
                 giorni_utili = sorted({f // N_ORE for f in fasce})
-                if (not any(b - a >= 2 for a in giorni_utili for b in giorni_utili)
-                        and dati.gruppo_di(s.id) is None):   # con la musica da camera può condensare lì
+                if not any(b - a >= 2 for a in giorni_utili for b in giorni_utili):
                     quali = ", ".join(GIORNI[g] for g in giorni_utili) or "nessuno"
                     if len(giorni_utili) < 2:
                         err(dove, f"Le 2 ore di 1° strumento vanno in due giorni diversi, ma con {doc_nome} resta "

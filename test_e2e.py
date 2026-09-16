@@ -543,15 +543,11 @@ def controlla_invarianti(caso: unittest.TestCase, orario) -> None:
             a, b = sorted((l for l in mie if l.tipo == TIPO_STRUM1), key=lambda l: l.fascia)
             caso.assertEqual((a.giorno, b.ora), (b.giorno, a.ora + 1))
             caso.assertTrue(b.due_ore and not a.due_ore)
-        # le 2 ore di 1° strumento con almeno un giorno in mezzo, salvo giorno unico, ore fissate a mano,
-        # oppure tutte e due nel pomeriggio della musica da camera (mai attaccate senza il SI)
+        # le 2 ore di 1° strumento mai lo stesso giorno, salvo giorno unico o tutte e due fissate a mano
         fissate = {sid for sid, n in Counter(ab.studente for ab in dati.abbinamenti if ab.tipo == TIPO_STRUM1).items() if n >= 2}
         if s.primo_separato and h1 == 2 and not s.giorno_unico and s.id not in fissate:
             a, b = sorted((l for l in mie if l.tipo == TIPO_STRUM1), key=lambda l: l.fascia)
-            if a.giorno == b.giorno:   # lo stesso giorno solo con la musica da camera quel giorno, mai attaccate
-                caso.assertIn(a.giorno, {l.giorno for l in mie if l.tipo == TIPO_LMC},
-                              f"{s.id}: 1° strumento due volte lo stesso giorno senza musica da camera")
-                caso.assertNotEqual(b.ora, a.ora + 1, f"{s.id}: 1° strumento attaccato senza SI")
+            caso.assertNotEqual(a.giorno, b.giorno, f"{s.id}: 1° strumento due volte lo stesso giorno senza SI")
         caso.assertLessEqual(orario.rientri_di(s.id), dati.parametri.max_rientri_vicini)
     # docenti: una lezione per fascia, solo fasce con X (o A per l'accompagnamento)
     visti = set()
@@ -845,18 +841,18 @@ class TestAbbinamentiFissi(Caso):
         self.assertTrue(any("giorni di fila" in x.messaggio for x in o.avvisi), [str(x) for x in o.avvisi])
         controlla_invarianti(self, o)
 
-    def test_con_la_musica_da_camera_si_condensa(self):
-        """5ª con la LMC: le 2 ore di 1° strumento possono stare nel pomeriggio della LMC, una prima e una dopo."""
+    def test_con_la_musica_da_camera_non_si_condensa(self):
+        """Anche con la musica da camera, le 2 ore di 1° strumento non stanno mai lo stesso giorno senza SI."""
         d = dati_di(studenti=[stud("ROSSI", classe=5, s2="", d2=""),
                               stud("NERI", classe=5, nome="ANNA", d1="Verdi", s2="", d2="")],
-                    docenti=[doc("Bianchi", tutte(giorni=[3])), doc("Verdi", tutte(giorni=[3])),
+                    docenti=[doc("Bianchi", tutte(giorni=[1, 3])), doc("Verdi", tutte(giorni=[1, 3])),
                              doc("Camera", tutte(giorni=[3]))],
                     gruppi=[gruppo(1, "Camera", "Rossi", "Neri")], timeout=10)
         controlli.controlla(d)
         o = motore.calcola(d)
         for sid in ("ROSSI MARIO", "NERI ANNA"):
-            ore = sorted((l.ora, l.tipo) for l in o.lezioni_di(sid))
-            self.assertEqual([t for _, t in ore], [TIPO_STRUM1, TIPO_LMC, TIPO_STRUM1], ore)
+            gg = sorted(l.giorno for l in o.lezioni_di(sid) if l.tipo == TIPO_STRUM1)
+            self.assertEqual(gg, [1, 3], sid)
         controlla_invarianti(self, o)
 
     def test_laboratorio_lmi_fissato_nel_pomeriggio(self):

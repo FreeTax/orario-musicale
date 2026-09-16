@@ -391,6 +391,15 @@ sono omonimi, e negli LMI questo vale per ogni nome dell'elenco separato da virg
 dati veri: Gori Camilla di 3ª e Gori Yvaine di 5ª) la cella resta come scritta, così è chi compila a
 scegliere. La verifica dei nomi al momento del calcolo accetta entrambe le forme.
 
+**Mai lo stesso giorno, nemmeno con la musica da camera (16/9/2026, richiesta di Francesco)**: Pippi (5ª) si
+era trovata le due ore di 1° strumento lo stesso lunedì, una prima e una dopo la musica da camera, per
+l'eccezione che avevo introdotto il 15/9 su un suggerimento poi ritirato. Francesco: «se non è detto SI nella
+colonna, devono essere in due giorni distinti e, tutte le volte in cui è possibile, con almeno un giorno in
+mezzo». L'eccezione è tolta. La regola definitiva, in due livelli: **lo stesso giorno è vietato** (vincolo
+rigido, salvo «attaccato = SI», «Giorno unico» e le due ore fissate a mano); **il giorno libero in mezzo** è
+un vincolo fortissimo ma cedevole (`PESO_GIORNI_DI_FILA = 4000`), che cede solo quando il docente non offre
+due giorni distanti, come Pratesi con Spampani, e lo dice negli avvisi. Versione regole 6.
+
 **L'attesa prima della prima lezione è un buco (15/9/2026, richiesta di Francesco sull'orario delle 12:16)**:
 «le ore vuote prima dell'inizio della prima lezione sono comunque buco; le prime ore del pomeriggio vanno
 riservate a chi abita lontano». Dalla metà più lontana dei ragazzi in su l'attesa dopo il mattino pesa
@@ -473,13 +482,9 @@ guardando ciascun allievo da solo sembra risolvibile, insieme no. Con il vincolo
 due giorni di fila e l'orario esiste. Se il docente ha un giorno solo, il calcolo si ferma prima e dice le
 due vie d'uscita: «1° strumento attaccato = SI» oppure un altro giorno al docente.
 
-Eccezioni: «attaccato = SI», «Giorno unico = SI», ore fissate a mano, e — su suggerimento di Francesco — chi
-ha la **musica da camera** può condensare tutto nel pomeriggio della musica da camera: un'ora di 1° strumento
-prima, la musica da camera, un'ora dopo. Mai attaccate fra loro, perché due ore di fila le concede solo il SI.
-Vale per tutti, non solo per chi abita lontano (prima avevo messo una soglia di 90 minuti, tolta su sua
-indicazione). Nel modello: per ogni giorno una variabile «tutte e due qui» ammessa solo se quel giorno c'è la
-musica da camera; il tetto di una lezione per giorno e per coppia di giorni vicini si alza di quella variabile.
-La verifica finale controlla tutto questo sull'orario prodotto e negli avvisi compaiono i ragazzi condensati.
+Eccezioni: «attaccato = SI», «Giorno unico = SI», ore fissate a mano. *(Il 15/9 avevo aggiunto anche «chi ha la
+musica da camera può condensare tutto nel suo pomeriggio»: tolta il 16/9, vedi sopra — produceva Pippi con due
+ore di sax lo stesso lunedì.)*
 
 **Il pomeriggio unico solo a chi lo chiede (15/9/2026, richiesta di Francesco)**: la scorciatoia «chi abita
 oltre 90 minuti fa tutto lo stesso giorno» è stata tolta, insieme al parametro che la governava. Due lezioni
