@@ -391,6 +391,14 @@ sono omonimi, e negli LMI questo vale per ogni nome dell'elenco separato da virg
 dati veri: Gori Camilla di 3ª e Gori Yvaine di 5ª) la cella resta come scritta, così è chi compila a
 scegliere. La verifica dei nomi al momento del calcolo accetta entrambe le forme.
 
+**Compenso a chi viene tre pomeriggi (16/9/2026, richiesta di Francesco)**: Scalzini (35 minuti) è costretta a
+tre pomeriggi dai docenti (Francini solo il venerdì) e, essendo "quasi vicina", prendeva anche le ore tarde:
+pagava due volte. Ora per chi ha tre rientri ogni lezione dalla seconda ora in su costa `PESO_COMPENSO_TRE =
+200 × ora` in più. È un compenso, non una priorità: le 13:30 restano prima ai lontani, e Greco e Kozmina
+(10 minuti, tre volte alle 16:30) non cambiano. Nel modello: una variabile `tre` legata a `rientri ≥ 3` e,
+per ogni fascia non prima, il prodotto `tre ∧ occupata`. Sul file vero Scalzini passa da 14:30/15:30/15:30 a
+15:30/15:30/**13:30** (il venerdì con Francini, dove non compete con i lontani di Bartolozzi). Versione regole 8.
+
 **La distanza in minuti dà la priorità; i km non contano più (16/9/2026, richiesta di Francesco)**: sull'orario
 delle 12:46 Boldrini (83 min) veniva tre pomeriggi e Arcangeli (108 min) aveva un'ora di buco. Francesco: «più
 sei lontano, maggiore priorità hai». Ora ogni termine di comodità di un ragazzo (buco, attesa dopo il mattino,
