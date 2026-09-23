@@ -45,9 +45,7 @@ if errorlevel 1 goto errore
 
 REM ---- 2. Inno Setup (il programma che crea l'installer) ----
 :cercainno
-set ISCC=
-if exist "%ProgramFiles(x86)%\Inno Setup 6\ISCC.exe" set ISCC=%ProgramFiles(x86)%\Inno Setup 6\ISCC.exe
-if not defined ISCC if exist "%ProgramFiles%\Inno Setup 6\ISCC.exe" set ISCC=%ProgramFiles%\Inno Setup 6\ISCC.exe
+call :trovainno
 if defined ISCC goto costruisci
 
 echo.
@@ -56,8 +54,7 @@ echo.
 where winget >nul 2>nul
 if errorlevel 1 goto senzainno
 winget install --id JRSoftware.InnoSetup --accept-source-agreements --accept-package-agreements
-if exist "%ProgramFiles(x86)%\Inno Setup 6\ISCC.exe" set ISCC=%ProgramFiles(x86)%\Inno Setup 6\ISCC.exe
-if not defined ISCC if exist "%ProgramFiles%\Inno Setup 6\ISCC.exe" set ISCC=%ProgramFiles%\Inno Setup 6\ISCC.exe
+call :trovainno
 if not defined ISCC goto senzainno
 
 REM ---- 3. programma + installer ----
@@ -75,7 +72,7 @@ if errorlevel 1 goto errore
 if errorlevel 1 goto errore
 
 echo.
-echo  [3/3] Creo l'installer...
+echo  [3/3] Creo l'installer con %ISCC%
 echo.
 "%ISCC%" "installer\installer.iss"
 if errorlevel 1 goto errore
@@ -104,10 +101,23 @@ echo.
 pause
 exit /b 1
 
+REM Cerca ISCC.exe di qualsiasi versione di Inno Setup (6, 7, ...), nelle cartelle
+REM di installazione consuete e nel PATH. Se ce n'e' piu' d'una prende la piu' recente.
+:trovainno
+set ISCC=
+for %%d in ("%ProgramFiles(x86)%" "%ProgramFiles%" "%LOCALAPPDATA%\Programs") do (
+  if not defined ISCC for /d %%v in ("%%~d\Inno Setup*") do if exist "%%~v\ISCC.exe" set "ISCC=%%~v\ISCC.exe"
+)
+if not defined ISCC for /f "delims=" %%p in ('where ISCC.exe 2^>nul') do if not defined ISCC set "ISCC=%%p"
+exit /b 0
+
 :senzainno
 echo.
-echo  Non riesco a installare Inno Setup da solo.
-echo  Scaricalo a mano (e' gratuito) da:  https://jrsoftware.org/isdl.php
+echo  Non trovo Inno Setup su questo computer e non riesco a installarlo da solo.
+echo  Se e' gia' installato: ho cercato ISCC.exe in "Programmi", "Programmi (x86)"
+echo  e "%LOCALAPPDATA%\Programs", nelle cartelle "Inno Setup ...". Se sta altrove,
+echo  aggiungi la sua cartella al PATH oppure reinstallalo nella cartella proposta.
+echo  Se non e' installato, scaricalo (e' gratuito) da:  https://jrsoftware.org/isdl.php
 echo  Installalo, poi rilancia questo file.
 echo.
 echo  In alternativa usa costruisci_app.bat, che crea il programma

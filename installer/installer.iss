@@ -1,4 +1,4 @@
-; Installer per Windows di "Orario Musicale" (Inno Setup 6).
+; Installer per Windows di "Orario Musicale" (Inno Setup 6 o successivo).
 ; Non si lancia a mano: lo compila costruisci_installer.bat, che prima crea il programma con PyInstaller.
 ; Risultato: installer_output\<nome_installer>.exe
 

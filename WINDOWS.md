@@ -37,7 +37,8 @@ e disinstallazione dal Pannello di controllo.
 1. Sul PC Windows, con Python installato come sopra, doppio clic su **`costruisci_installer.bat`**.
    Lo script fa tutto: ambiente Python, programma, installer. La prima volta installa anche **Inno Setup**
    (il programma gratuito che crea l'installer): se non riesce da solo, lo scarichi da
-   <https://jrsoftware.org/isdl.php>, lo installi e rilanci lo script.
+   <https://jrsoftware.org/isdl.php>, lo installi e rilanci lo script. Va bene qualsiasi versione dalla 6 in
+   su: lo script la cerca in Programmi, Programmi (x86) e nella cartella dei programmi dell'utente.
 2. Alla fine trovi **`installer_output\OrarioMusicale-setup-1.0.exe`** (il nome dipende dalle impostazioni,
    vedi sotto): circa 100 MB, un file solo.
    Si consegna su chiavetta o con un link di condivisione (per email spesso è troppo grande).
