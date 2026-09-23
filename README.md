@@ -110,6 +110,9 @@ Per l'applicazione da doppio clic: `./costruisci_app.sh` → `dist/Orario Musica
 [GUIDA INSTALLAZIONE WINDOWS.md](GUIDA%20INSTALLAZIONE%20WINDOWS.md). In breve, `costruisci_installer.bat` produce un `setup.exe`
 da consegnare, `windows_avvia.bat` prepara l'ambiente e avvia il programma da sorgente.
 
+Nome del programma, versione e icona (file `.ico`) si impostano in `impostazioni_installer.txt`, letto da
+tutti gli script di costruzione, su Mac e su Windows.
+
 ## Provarlo
 
 Il file `esempio/orario_2026-27.xlsx` contiene un dataset **inventato** già pronto: 30 ragazzi, 7 docenti,

@@ -370,6 +370,8 @@ dati_prova.py           dati veri "riempiti" → input_prova.xlsx (contiene nomi
 dati_esempio.py         dataset inventato → esempio/orario_2026-27.xlsx (30 studenti, 7 docenti)
 test_motore.py, test_export.py, test_e2e.py, test_gui.py   prove da terminale
 installer/installer.iss  script Inno Setup per l'installer Windows
+impostazioni_installer.txt  nome del programma, versione, icona, nome del setup (letto dagli script di costruzione)
+leggi_impostazioni.py   legge il file sopra per i .bat e lo .sh e scrive installer/impostazioni_generate.iss
 ```
 
 **Aule per giorno (9/9/2026, richiesta di Francesco)**: nel foglio Docenti l'aula non è più una sola per
@@ -799,6 +801,14 @@ amministratore, collegamenti e disinstallazione; lo script installa Inno Setup c
 intera). Al primo avvio
 SmartScreen chiede "Ulteriori informazioni" → "Esegui comunque"; gli antivirus a volte mettono in quarantena
 gli eseguibili creati con PyInstaller, in quel caso conviene la prima strada.
+
+**Nome, versione e icona (23/9/2026, richiesta di Francesco)**: non sono più scritti dentro agli script ma in
+`impostazioni_installer.txt` (voci `nome`, `versione`, `icona`, `nome_installer`). `leggi_impostazioni.py`
+lo legge (tollera spazi attorno all'uguale, virgolette, il BOM di Blocco note; se l'icona manca avvisa e
+prosegue senza) e stampa le variabili per i `.bat` e per lo `.sh`; per Inno Setup scrive
+`installer/impostazioni_generate.iss`, incluso da `installer.iss` con valori predefiniti di riserva. L'icona
+deve essere un `.ico` multi-risoluzione; PyInstaller la converte da sé in `.icns` sul Mac grazie a Pillow, che
+c'è già per reportlab. Il nome dell'installer, se non indicato, è `<nome senza spazi>-setup-<versione>`.
 
 **Accorgimenti per Windows già presi**: `tzdata` nei requisiti (Windows non ha il database dei fusi, che
 serve per gli orari dei mezzi) con calcolo di riserva dell'ora legale italiana se mancasse; carattere Segoe UI

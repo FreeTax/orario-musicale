@@ -4,7 +4,8 @@ REM ============================================================
 REM  Orario Musicale - crea l'installer per Windows (setup.exe)
 REM  Da lanciare su un PC Windows. Fa tutto: ambiente, programma
 REM  e installer. Risultato in:
-REM     installer_output\OrarioMusicale-setup-1.0.exe
+REM     installer_output\<nome_installer>.exe
+REM  Nome, versione e icona si cambiano in impostazioni_installer.txt.
 REM ============================================================
 cd /d "%~dp0"
 title Orario Musicale - creazione installer
@@ -17,6 +18,16 @@ where python >nul 2>nul
 if not errorlevel 1 set PY=python
 :pythontrovato
 if not defined PY goto senzapython
+
+REM ---- impostazioni: nome, versione, icona (da impostazioni_installer.txt) ----
+set IMPOSTAZIONI_OK=
+for /f "usebackq delims=" %%l in (`%PY% leggi_impostazioni.py bat`) do %%l
+if not defined IMPOSTAZIONI_OK goto erroreimpostazioni
+set OPZ_ICONA=
+if defined ICONA set OPZ_ICONA=--icon "%ICONA%"
+echo  Programma: %NOME%  (versione %VERSIONE%)
+if defined ICONA echo  Icona: %ICONA%
+if not defined ICONA echo  Icona: predefinita
 
 REM ---- 1. ambiente Python ----
 if not exist ".venv\Scripts\python.exe" goto prepara
@@ -56,7 +67,7 @@ echo  [2/3] Creo il programma: alcuni minuti...
 echo.
 .venv\Scripts\python.exe -m pip install -q pyinstaller
 if errorlevel 1 goto errore
-.venv\Scripts\python.exe -m PyInstaller --noconfirm --windowed --name "Orario Musicale" ^
+.venv\Scripts\python.exe -m PyInstaller --noconfirm --windowed --name "%NOME%" %OPZ_ICONA% ^
   --collect-all customtkinter --collect-all tksheet --collect-all ortools --collect-all tzdata ^
   --hidden-import orario.motore --hidden-import orario.export --hidden-import orario.export_excel ^
   --hidden-import orario.export_pdf --hidden-import orario.export_comune ^
@@ -73,7 +84,7 @@ echo.
 echo  ============================================================
 echo   Fatto. L'installer da consegnare e' qui:
 echo.
-echo      installer_output\OrarioMusicale-setup-1.0.exe
+echo      installer_output\%NOME_INSTALLER%.exe
 echo.
 echo   E' un unico file: si manda per email (se passa, pesa circa
 echo   100 MB), su chiavetta o con un link di condivisione.
@@ -101,6 +112,13 @@ echo  Installalo, poi rilancia questo file.
 echo.
 echo  In alternativa usa costruisci_app.bat, che crea il programma
 echo  senza installer (va copiata tutta la cartella dist).
+echo.
+pause
+exit /b 1
+
+:erroreimpostazioni
+echo.
+echo  Non riesco a leggere impostazioni_installer.txt (vedi il messaggio qui sopra).
 echo.
 pause
 exit /b 1

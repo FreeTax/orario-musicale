@@ -1,0 +1,17 @@
+# Impostazioni del programma da costruire e dell'installer.
+# Le leggono costruisci_installer.bat, costruisci_app.bat e costruisci_app.sh.
+# Una riga per voce, nella forma  chiave = valore.  Le righe che iniziano con # sono commenti.
+
+# Nome del programma: file .exe, cartella in dist, collegamenti sul desktop e nel menu Start.
+nome = Orario Musicale
+
+# Versione, compare nell'installer e in "App installate" di Windows.
+versione = 1.0
+
+# Icona del programma (e dell'installer). File .ico per Windows, con dentro piu' risoluzioni
+# (16, 32, 48, 256 pixel). Lo stesso file va bene anche per il Mac. Percorso relativo a questa
+# cartella. Lascia vuoto per l'icona predefinita.
+icona = icona.ico
+
+# Nome del file dell'installer, senza .exe. Se vuoto: <nome senza spazi>-setup-<versione>
+nome_installer =

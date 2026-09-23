@@ -38,7 +38,8 @@ e disinstallazione dal Pannello di controllo.
    Lo script fa tutto: ambiente Python, programma, installer. La prima volta installa anche **Inno Setup**
    (il programma gratuito che crea l'installer): se non riesce da solo, lo scarichi da
    <https://jrsoftware.org/isdl.php>, lo installi e rilanci lo script.
-2. Alla fine trovi **`installer_output\OrarioMusicale-setup-1.0.exe`**: circa 100 MB, un file solo.
+2. Alla fine trovi **`installer_output\OrarioMusicale-setup-1.0.exe`** (il nome dipende dalle impostazioni,
+   vedi sotto): circa 100 MB, un file solo.
    Si consegna su chiavetta o con un link di condivisione (per email spesso è troppo grande).
 3. Chi lo riceve fa doppio clic e segue le schermate. **Non serve Python e non serve la password di
    amministratore**: il programma si installa nella cartella personale dell'utente.
@@ -60,6 +61,32 @@ Se preferisci non usare un installer, va bene anche così.
 4. Per comodità: tasto destro sul file `.exe` → "Invia a" → "Desktop (crea collegamento)".
 
 La costruzione richiede qualche minuto e la cartella risultante pesa circa 300 MB.
+
+---
+
+## Nome, versione e icona
+
+Si cambiano nel file **`impostazioni_installer.txt`**, nella cartella del progetto, aprendolo con Blocco
+note. Lo leggono tutti e tre gli script, quindi basta modificarlo e rilanciare lo script.
+
+```
+nome = Orario Musicale
+versione = 1.0
+icona = icona.ico
+nome_installer =
+```
+
+- **nome**: il nome del programma. Diventa il nome del file `.exe`, della cartella in `dist`, dei
+  collegamenti sul desktop e nel menu Start, e della voce in "App installate".
+- **versione**: compare nell'installer e in "App installate". Alzarla quando si consegna una versione nuova.
+- **icona**: il file dell'icona, messo nella cartella del progetto. Deve essere un **`.ico`** (non un
+  `.png`) con dentro più risoluzioni, almeno 16, 32, 48 e 256 pixel: si ottiene da un'immagine quadrata
+  con un qualsiasi convertitore online "PNG to ICO". Lo stesso file va bene anche per il Mac. Se la riga è
+  vuota o il file non c'è, lo script avvisa e usa l'icona predefinita.
+- **nome_installer**: il nome del file `setup.exe`, senza `.exe`. Se vuoto viene composto da solo:
+  `OrarioMusicale-setup-1.0`.
+
+Le righe che iniziano con `#` sono commenti. Non serve mettere virgolette, anche se il nome ha spazi.
 
 ---
 
@@ -100,6 +127,7 @@ Nessuna nel funzionamento. Sono stati sistemati tre punti che su Windows si comp
 ## Aggiornare il programma in seguito
 
 Se ti mando una versione nuova: sostituisci la cartella `orario` e i file `app.py`, `requirements.txt`,
+`leggi_impostazioni.py` (tieni il tuo `impostazioni_installer.txt` e la tua icona),
 poi rilancia lo script che hai usato (`windows_avvia.bat`, `costruisci_installer.bat` o
 `costruisci_app.bat`). I file Excel con i dati non vengono toccati: tienili comunque fuori dalla cartella
 del programma, per sicurezza.
