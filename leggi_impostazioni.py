@@ -48,6 +48,38 @@ def leggi():
     return valori
 
 
+def formato_immagine(percorso):
+    """Riconosce il formato dai primi byte: 'ico', 'png', 'icns', 'jpeg', 'bmp' o None."""
+    with open(percorso, "rb") as f:
+        testa = f.read(8)
+    if testa[:4] == b"\x00\x00\x01\x00":
+        return "ico"
+    if testa[:4] == b"\x89PNG":
+        return "png"
+    if testa[:4] == b"icns":
+        return "icns"
+    if testa[:3] == b"\xff\xd8\xff":
+        return "jpeg"
+    if testa[:2] == b"BM":
+        return "bmp"
+    return None
+
+
+def dimensioni_ico(percorso):
+    """Lati delle immagini contenute in un .ico (0 nell'intestazione significa 256)."""
+    import struct
+    with open(percorso, "rb") as f:
+        dati = f.read(6 + 16 * 64)
+    quante = struct.unpack_from("<H", dati, 4)[0]
+    lati = set()
+    for i in range(min(quante, 64)):
+        if 6 + 16 * i + 2 > len(dati):
+            break
+        larghezza, altezza = dati[6 + 16 * i], dati[6 + 16 * i + 1]
+        lati.add(max(larghezza or 256, altezza or 256))
+    return lati
+
+
 def sistema(valori):
     nome = valori["nome"]
     if re.search(r'[\\/:*?"<>|]', nome):
@@ -66,6 +98,17 @@ def sistema(valori):
             estensione = os.path.splitext(percorso)[1].lower()
             if estensione not in (".ico", ".icns", ".png"):
                 avviso(f"l'icona è un file {estensione}: meglio un .ico (Windows) o .icns (Mac).")
+            formato = formato_immagine(percorso)
+            if estensione == ".ico" and formato != "ico":
+                avviso(f"'{icona}' ha estensione .ico ma dentro è un file {formato or 'sconosciuto'}: "
+                       "rinominare non basta. Va convertito in .ico vero (per esempio con un "
+                       "convertitore online 'PNG to ICO'). Vado avanti senza icona.")
+                percorso = ""
+            elif formato == "ico":
+                dimensioni = dimensioni_ico(percorso)
+                if dimensioni and max(dimensioni) < 48:
+                    avviso(f"l'icona contiene solo {sorted(dimensioni)} pixel: sul desktop verrà sgranata. "
+                           "Meglio un .ico con anche 48 e 256 pixel.")
             icona = percorso
     valori["icona"] = icona
 
